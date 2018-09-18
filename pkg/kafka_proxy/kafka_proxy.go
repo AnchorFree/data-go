@@ -142,3 +142,13 @@ func (kp *KafkaProxy) GetBreaker() *circuit.Breaker {
 func (kp *KafkaProxy) GetClient() client.I {
 	return kp.client
 }
+
+func (kp *KafkaProxy) GetTopicProps(topic string) TopicProps {
+	for _, tp := range kp.Config.Topics {
+		if tp.Name == topic {
+			return tp
+		}
+	}
+	logger.Get().Errorf("Could not find topic props: %s", topic)
+	return TopicProps{}
+}

@@ -167,4 +167,5 @@ func TestKafkaProxyTopicListInitialization(t *testing.T) {
 	expectedTopics := []string{"topic1", "topic2", "topic3"}
 	sort.Strings(proxy.Topics)
 	assert.Equal(t, expectedTopics, proxy.Topics)
+	assert.Equal(t, cfg.Topics[0], proxy.GetTopicProps("topic1"))
 }
