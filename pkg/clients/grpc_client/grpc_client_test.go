@@ -3,9 +3,9 @@ package grpc_client
 import (
 	"bytes"
 	//"fmt"
+	pb "github.com/anchorfree/data-go/pkg/ambassador/pb"
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/anchorfree/data-go/pkg/testutils"
-	pb "github.com/anchorfree/kafka-ambassador/pkg/servers/grpcserver/pb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"

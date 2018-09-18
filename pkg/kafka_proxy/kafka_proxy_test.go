@@ -3,8 +3,8 @@ package kafka_proxy
 import (
 	"bytes"
 	"fmt"
+	pb "github.com/anchorfree/data-go/pkg/ambassador/pb"
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
-	pb "github.com/anchorfree/kafka-ambassador/pkg/servers/grpcserver/pb"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
