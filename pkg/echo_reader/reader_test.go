@@ -2,7 +2,7 @@ package echo_reader
 
 import (
 	"bytes"
-	"github.com/anchorfree/ula-edge/pkg/line_offset_reader"
+	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/stretchr/testify/assert"
 	"io"
 	"io/ioutil"

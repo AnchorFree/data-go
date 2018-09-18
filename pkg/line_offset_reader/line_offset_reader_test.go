@@ -1,8 +1,8 @@
 package line_offset_reader
 
 import (
-	eaor "github.com/anchorfree/ula-edge/pkg/error_at_offset_reader"
-	"github.com/anchorfree/ula-edge/pkg/testutils"
+	eaor "github.com/anchorfree/data-go/pkg/error_at_offset_reader"
+	"github.com/anchorfree/data-go/pkg/testutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io"

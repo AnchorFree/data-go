@@ -2,7 +2,7 @@ package gdpr
 
 import (
 	"bytes"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/line_reader"
 	"net"
 	"regexp"
 )

@@ -2,7 +2,7 @@ package echo_reader
 
 import (
 	"fmt"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/line_reader"
 	"io"
 )
 

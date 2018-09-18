@@ -3,7 +3,7 @@ package line_offset_reader
 import (
 	"bufio"
 	"bytes"
-	"github.com/anchorfree/ula-edge/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/logger"
 	"io"
 )
 

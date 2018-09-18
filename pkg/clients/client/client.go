@@ -3,7 +3,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/prometheus/client_golang/prometheus"
 )
 

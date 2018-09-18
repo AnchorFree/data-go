@@ -2,12 +2,12 @@ package kafka_proxy
 
 import (
 	"errors"
-	"github.com/anchorfree/ula-edge/pkg/clients/client"
-	"github.com/anchorfree/ula-edge/pkg/clients/grpc_client"
-	"github.com/anchorfree/ula-edge/pkg/clients/http_client"
-	//"github.com/anchorfree/ula-edge/pkg/config"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
-	"github.com/anchorfree/ula-edge/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/clients/client"
+	"github.com/anchorfree/data-go/pkg/clients/grpc_client"
+	"github.com/anchorfree/data-go/pkg/clients/http_client"
+	//"github.com/anchorfree/data-go/pkg/config"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/cenk/backoff"
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"

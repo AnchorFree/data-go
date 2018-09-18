@@ -3,9 +3,9 @@ package extra_fields
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/gpr-edge/pkg/confreader"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
-	"github.com/anchorfree/ula-edge/pkg/logger"
 	geoip2 "github.com/oschwald/geoip2-golang"
 	"net/http"
 	"time"

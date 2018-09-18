@@ -8,9 +8,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/gpr-edge/pkg/confreader"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
-	"github.com/anchorfree/ula-edge/pkg/logger"
 	"github.com/buger/jsonparser"
 	"github.com/prometheus/client_golang/prometheus"
 )

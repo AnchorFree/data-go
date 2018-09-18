@@ -1,0 +1,16 @@
+syntax = "proto3";
+option go_package = "pb";
+
+service KafkaAmbassador {
+rpc Produce (stream ProdRq) returns (stream ProdRs) {}
+}
+
+message ProdRq {
+    string topic = 1;
+    bytes message = 2;
+    uint64 streamOffset = 3;
+}
+
+message ProdRs {
+    uint64 streamOffset = 3;
+}

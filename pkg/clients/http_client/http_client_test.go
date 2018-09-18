@@ -3,7 +3,7 @@ package http_client
 import (
 	"bytes"
 	"fmt"
-	"github.com/anchorfree/ula-edge/pkg/line_offset_reader"
+	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"

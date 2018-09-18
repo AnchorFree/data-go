@@ -1,10 +1,10 @@
 package grpc_client
 
 import (
-	pb "github.com/anchorfree/kafka-ambassador/pkg/servers/grpcserver/pb"
-	"github.com/anchorfree/ula-edge/pkg/clients/client"
-	"github.com/anchorfree/ula-edge/pkg/line_reader"
-	"github.com/anchorfree/ula-edge/pkg/logger"
+	pb "github.com/anchorfree/data-go/pkg/ambassador/pb"
+	"github.com/anchorfree/data-go/pkg/clients/client"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	context "golang.org/x/net/context"

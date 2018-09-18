@@ -1,8 +1,8 @@
 package extra_fields
 
 import (
+	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/gpr-edge/pkg/confreader"
-	"github.com/anchorfree/ula-edge/pkg/logger"
 	"github.com/golang/gddo/httputil/header"
 	geoip2 "github.com/oschwald/geoip2-golang"
 	"net"

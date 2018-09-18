@@ -3,7 +3,7 @@ package gzip_hash_reader
 import (
 	"compress/gzip"
 	"crypto/md5"
-	"github.com/anchorfree/ula-edge/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/logger"
 	"hash"
 	"io"
 	"sync"
