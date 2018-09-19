@@ -25,7 +25,7 @@ type ExtraFields struct {
 }
 
 func (f *ExtraFields) GeoOrigin(headers http.Header, cityDB *geoip2.Reader, ispDB *geoip2.Reader) {
-	ip := getIPAdress(headers)
+	ip := GetIPAdress(headers)
 	// if (ngx.var.ip_owner == "af" and not (ngx.var.http_x_amz_cf_id == nil)) then
 	// extra_fields["from_country"] = nil
 	// end
@@ -45,7 +45,7 @@ func GetNginxHostname(h http.Header) string {
 	return h.Get(http.CanonicalHeaderKey("host"))
 }
 
-func getIPAdress(headers http.Header) net.IP {
+func GetIPAdress(headers http.Header) net.IP {
 	var realIP net.IP
 	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
 		addresses := header.ParseList(headers, http.CanonicalHeaderKey(h))
