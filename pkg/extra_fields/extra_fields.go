@@ -26,9 +26,6 @@ type ExtraFields struct {
 
 func (f *ExtraFields) GeoOrigin(req *http.Request, cityDB *geoip2.Reader, ispDB *geoip2.Reader) {
 	ip := GetIPAdress(req)
-	// if (ngx.var.ip_owner == "af" and not (ngx.var.http_x_amz_cf_id == nil)) then
-	// extra_fields["from_country"] = nil
-	// end
 
 	f.fromISP(req, ispDB, ip)
 	if confreader.IPs != nil {

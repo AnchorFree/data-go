@@ -26,17 +26,6 @@ type EF struct {
 var raw []byte = []byte(`{"event":"test","payload":{"field": "hi"},"tail":"latest"}`)
 
 func TestExtraFieldsFromHeaders(t *testing.T) {
-	/*
-	   "host":"favoriteshoes.us"
-	   "from_country_source":"ngx.var.geoip_country_code"
-	   "cloudfront":0
-	   "ngx_var_remote_addr":"113.203.84.0"
-	   "via":"74.115.4.69"
-	   "from_country":"AE"
-	   "from_ip":"113.203.84.0"
-	   "server_ts":1521800927956
-	   "client_ts":1521800918976
-	*/
 	topic := "test"
 	host := "favoriteshoes.com"
 	testIP := "1.128.0.0"
