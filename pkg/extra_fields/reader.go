@@ -45,14 +45,14 @@ func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 type ExtraFieldsReader struct {
 	line_reader.I
 	reader      line_reader.I
-	headers     http.Header
+	request     *http.Request
 	extraFields []byte
 }
 
-func NewExtraFieldsReader(r line_reader.I, h http.Header) *ExtraFieldsReader {
+func NewExtraFieldsReader(reader line_reader.I, req *http.Request) *ExtraFieldsReader {
 	return &ExtraFieldsReader{
-		reader:      r,
-		headers:     h,
+		reader:      reader,
+		request:     req,
 		extraFields: []byte(""),
 	}
 }
@@ -88,9 +88,9 @@ func (r *ExtraFieldsReader) ReadLine() (line []byte, offset uint64, err error) {
 	line, offset, err = r.reader.ReadLine()
 
 	fields := new(ExtraFields)
-	fields.GeoOrigin(r.headers, cityDB, ispDB)
-	fields.CloudFront = IsCloudfront(r.headers)
-	fields.Host = GetNginxHostname(r.headers)
+	fields.GeoOrigin(r.request, cityDB, ispDB)
+	fields.CloudFront = IsCloudfront(r.request)
+	fields.Host = GetNginxHostname(r.request)
 
 	extra, marshalErr := json.Marshal(fields)
 	if marshalErr != nil {
