@@ -1,7 +1,6 @@
 package extra_fields
 
 import (
-	"fmt"
 	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/gpr-edge/pkg/confreader"
 	"github.com/golang/gddo/httputil/header"
@@ -58,7 +57,6 @@ func GetIPAdress(req *http.Request) net.IP {
 		remoteAddr = req.RemoteAddr
 	}
 	realIP = net.ParseIP(remoteAddr)
-	fmt.Printf("%+v\n-----", realIP)
 
 	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
 		if len(req.Header.Get(http.CanonicalHeaderKey(h))) > 0 {
