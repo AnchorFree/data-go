@@ -24,51 +24,57 @@ type ExtraFields struct {
 	FromOrgName   string `json:"from_org_name,omitempty"`
 }
 
-func (f *ExtraFields) GeoOrigin(headers http.Header, cityDB *geoip2.Reader, ispDB *geoip2.Reader) {
-	ip := GetIPAdress(headers)
-	// if (ngx.var.ip_owner == "af" and not (ngx.var.http_x_amz_cf_id == nil)) then
-	// extra_fields["from_country"] = nil
-	// end
+func (f *ExtraFields) GeoOrigin(req *http.Request, cityDB *geoip2.Reader, ispDB *geoip2.Reader) {
+	ip := GetIPAdress(req)
 
-	f.fromISP(headers, ispDB, ip)
+	f.fromISP(req, ispDB, ip)
 	if confreader.IPs != nil {
-		if confreader.IPs.Found(ip) && IsCloudfront(headers) == 1 {
+		if confreader.IPs.Found(ip) && IsCloudfront(req) == 1 {
 			return
 		}
 	}
 
-	f.countryName(headers, cityDB, ip)
-	f.cityName(headers, cityDB, ip)
+	f.countryName(req, cityDB, ip)
+	f.cityName(req, cityDB, ip)
 }
 
-func GetNginxHostname(h http.Header) string {
-	return h.Get(http.CanonicalHeaderKey("host"))
+func GetNginxHostname(req *http.Request) string {
+	return req.Header.Get(http.CanonicalHeaderKey("host"))
 }
 
-func GetIPAdress(headers http.Header) net.IP {
+func GetIPAdress(req *http.Request) net.IP {
 	var realIP net.IP
+	var remoteAddr string
+	if strings.ContainsRune(
+		req.RemoteAddr,
+		':',
+	) {
+		remoteAddr, _, _ = net.SplitHostPort(req.RemoteAddr)
+	} else {
+		remoteAddr = req.RemoteAddr
+	}
+	realIP = net.ParseIP(remoteAddr)
+
 	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
-		addresses := header.ParseList(headers, http.CanonicalHeaderKey(h))
-		// march from right to left until we get a public address
-		// that will be the address right before our proxy.
-		for i := len(addresses) - 1; i >= 0; i-- {
-			ip := strings.TrimSpace(addresses[i])
-			// header can contain spaces too, strip those out.
-			realIP = net.ParseIP(ip)
-			if !realIP.IsGlobalUnicast() || isPrivateSubnet(realIP) {
-				// bad address, go to next
-				continue
+		if len(req.Header.Get(http.CanonicalHeaderKey(h))) > 0 {
+			addresses := header.ParseList(req.Header, http.CanonicalHeaderKey(h))
+			for i := 0; i < len(addresses); i++ {
+				ip := strings.TrimSpace(addresses[i])
+				// header can contain spaces too, strip those out.
+				realIP = net.ParseIP(ip)
+				if !realIP.IsGlobalUnicast() || isPrivateSubnet(realIP) {
+					// bad address, go to next
+					continue
+				}
+				return realIP
 			}
-			return realIP
 		}
 	}
 	return realIP
 }
 
-func (f *ExtraFields) countryName(h http.Header, db *geoip2.Reader, ip net.IP) error {
-	// extra_fields["from_country"] = ngx.var.geoip_country_code
-	// extra_fields["from_country_source"] = "ngx.var.geoip_country_code"
-	afCountry := GetMatchingHeader(h, "x_af_c_country")
+func (f *ExtraFields) countryName(req *http.Request, db *geoip2.Reader, ip net.IP) error {
+	afCountry := GetMatchingHeader(req.Header, "x_af_c_country")
 	if afCountry == "" && ip != nil {
 		// header key doesn't exist we should use GeoIP
 		record, err := db.Country(ip)
@@ -88,8 +94,8 @@ func (f *ExtraFields) countryName(h http.Header, db *geoip2.Reader, ip net.IP) e
 
 }
 
-func (f *ExtraFields) cityName(h http.Header, db *geoip2.Reader, ip net.IP) error {
-	afCity := GetMatchingHeader(h, "x_af_c_city")
+func (f *ExtraFields) cityName(req *http.Request, db *geoip2.Reader, ip net.IP) error {
+	afCity := GetMatchingHeader(req.Header, "x_af_c_city")
 	if afCity == "" && ip != nil {
 		record, err := db.City(ip)
 		if err != nil {
@@ -107,7 +113,7 @@ func (f *ExtraFields) cityName(h http.Header, db *geoip2.Reader, ip net.IP) erro
 	return nil
 }
 
-func (f *ExtraFields) fromISP(h http.Header, db *geoip2.Reader, ip net.IP) error {
+func (f *ExtraFields) fromISP(req *http.Request, db *geoip2.Reader, ip net.IP) error {
 	var isp *geoip2.ISP
 	var err error
 	if ip != nil {
@@ -117,28 +123,28 @@ func (f *ExtraFields) fromISP(h http.Header, db *geoip2.Reader, ip net.IP) error
 		}
 	}
 
-	fromASN := GetMatchingHeader(h, "x_af_asn")
+	fromASN := GetMatchingHeader(req.Header, "x_af_asn")
 	if fromASN == "" && isp != nil {
 		f.FromASN = strconv.FormatUint(uint64(isp.AutonomousSystemNumber), 10)
 	} else {
 		f.FromASN = fromASN
 	}
 
-	fromASNDesc := GetMatchingHeader(h, "x_af_asdescription")
+	fromASNDesc := GetMatchingHeader(req.Header, "x_af_asdescription")
 	if fromASNDesc == "" && isp != nil {
 		f.FromASDesc = isp.AutonomousSystemOrganization
 	} else {
 		f.FromASDesc = fromASNDesc
 	}
 
-	fromISP := GetMatchingHeader(h, "x_af_asdescription")
+	fromISP := GetMatchingHeader(req.Header, "X_AF_ISPNAME")
 	if fromISP == "" && isp != nil {
 		f.FromISP = isp.ISP
 	} else {
 		f.FromISP = fromISP
 	}
 
-	fromOrgName := GetMatchingHeader(h, "x_af_asdescription")
+	fromOrgName := GetMatchingHeader(req.Header, "X_AF_ORGNAME")
 	if fromOrgName == "" && isp != nil {
 		f.FromOrgName = isp.Organization
 	} else {
@@ -147,8 +153,8 @@ func (f *ExtraFields) fromISP(h http.Header, db *geoip2.Reader, ip net.IP) error
 	return err
 }
 
-func IsCloudfront(h http.Header) int {
-	amzId := h.Get(http.CanonicalHeaderKey("X-Amz-Cf-Id"))
+func IsCloudfront(req *http.Request) int {
+	amzId := req.Header.Get(http.CanonicalHeaderKey("X-Amz-Cf-Id"))
 	if len(amzId) > 0 {
 		return 1
 	}
