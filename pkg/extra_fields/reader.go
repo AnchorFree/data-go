@@ -104,7 +104,6 @@ func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 						logger.Get().Debugf("modified file (%v): %s", event.Op, event.Name)
 						switch event.Name {
 						case cityDBFile:
-
 							if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
 								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadCityDB(false) })
 							}
