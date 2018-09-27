@@ -24,18 +24,18 @@ type ExtraFields struct {
 	FromOrgName   string `json:"from_org_name,omitempty"`
 }
 
-func (f *ExtraFields) GeoOrigin(req *http.Request, cityDB *geoip2.Reader, ispDB *geoip2.Reader) {
+func (f *ExtraFields) GeoOrigin(req *http.Request) {
 	ip := GetIPAdress(req)
 
-	f.fromISP(req, ispDB, ip)
+	f.fromISP(req, ip)
 	if confreader.IPs != nil {
 		if confreader.IPs.Found(ip) && IsCloudfront(req) == 1 {
 			return
 		}
 	}
 
-	f.countryName(req, cityDB, ip)
-	f.cityName(req, cityDB, ip)
+	f.countryName(req, ip)
+	f.cityName(req, ip)
 }
 
 func GetNginxHostname(req *http.Request) string {
@@ -73,11 +73,13 @@ func GetIPAdress(req *http.Request) net.IP {
 	return realIP
 }
 
-func (f *ExtraFields) countryName(req *http.Request, db *geoip2.Reader, ip net.IP) error {
+func (f *ExtraFields) countryName(req *http.Request, ip net.IP) error {
 	afCountry := GetMatchingHeader(req.Header, "x_af_c_country")
 	if afCountry == "" && ip != nil {
 		// header key doesn't exist we should use GeoIP
-		record, err := db.Country(ip)
+		cityMux.RLock()
+		record, err := cityDB.Country(ip)
+		cityMux.RUnlock()
 		if err != nil {
 			logger.Get().Warnf("Error: %v, for ip: %s", err, ip.String())
 			return err
@@ -94,10 +96,12 @@ func (f *ExtraFields) countryName(req *http.Request, db *geoip2.Reader, ip net.I
 
 }
 
-func (f *ExtraFields) cityName(req *http.Request, db *geoip2.Reader, ip net.IP) error {
+func (f *ExtraFields) cityName(req *http.Request, ip net.IP) error {
 	afCity := GetMatchingHeader(req.Header, "x_af_c_city")
 	if afCity == "" && ip != nil {
-		record, err := db.City(ip)
+		cityMux.RLock()
+		record, err := cityDB.City(ip)
+		cityMux.RUnlock()
 		if err != nil {
 			logger.Get().Warnf("Error: %v, for ip: %s", err, ip.String())
 			return err
@@ -113,11 +117,13 @@ func (f *ExtraFields) cityName(req *http.Request, db *geoip2.Reader, ip net.IP) 
 	return nil
 }
 
-func (f *ExtraFields) fromISP(req *http.Request, db *geoip2.Reader, ip net.IP) error {
+func (f *ExtraFields) fromISP(req *http.Request, ip net.IP) error {
 	var isp *geoip2.ISP
 	var err error
 	if ip != nil {
-		isp, err = db.ISP(ip)
+		ispMux.RLock()
+		isp, err = ispDB.ISP(ip)
+		ispMux.RUnlock()
 		if err != nil {
 			logger.Get().Warnf("Error: %v, for ip: %s", err, ip.String())
 		}
