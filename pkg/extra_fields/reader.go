@@ -102,21 +102,20 @@ func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
 					if event.Name == cityDBFile || event.Name == ispDBFile || event.Name == afGeoFile {
 						logger.Get().Debugf("modified file (%v): %s", event.Op, event.Name)
-						switch event.Name {
-						case cityDBFile:
-							if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
+						if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
+							if found {
+								timers[event.Name].Stop()
+							}
+							switch event.Name {
+							case cityDBFile:
 								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadCityDB(false) })
-							}
-						case ispDBFile:
-							if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
+							case ispDBFile:
 								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadIspDB(false) })
-							}
-						case afGeoFile:
-							if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
+							case afGeoFile:
 								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadAFGeoIPData() })
+							default:
+								logger.Get().Errorf("Unknown modified file to process: %s", event.Name)
 							}
-						default:
-							logger.Get().Errorf("Unknown modified file to process: %s", event.Name)
 						}
 					}
 				}
