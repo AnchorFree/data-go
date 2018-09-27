@@ -7,39 +7,135 @@ import (
 	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/gpr-edge/pkg/confreader"
 	geoip2 "github.com/oschwald/geoip2-golang"
+	//"github.com/rjeczalik/notify"
+	"github.com/fsnotify/fsnotify"
 	"net/http"
+	"path/filepath"
+	"sync"
 	"time"
 )
 
 var (
-	cityDB    *geoip2.Reader
-	ispDB     *geoip2.Reader
-	afGeoFile string
+	cityDB     *geoip2.Reader
+	ispDB      *geoip2.Reader
+	cityDBFile string
+	ispDBFile  string
+	afGeoFile  string
+	cityMux    *sync.RWMutex
+	ispMux     *sync.RWMutex
+	afGeoMux   *sync.RWMutex
 )
 
-func reloadAFGeoIPData() {
+func loadAFGeoIPData() {
+	afGeoMux.Lock()
+	logger.Get().Infof("Loading AF geoip data from: %s", afGeoFile)
 	confreader.ReadGeo(afGeoFile)
+	afGeoMux.Unlock()
+}
+
+func loadCityDB(panicOnFail bool) {
+	logger.Get().Infof("Loading geoip2 City database from: %s", cityDBFile)
+	tmpDB, err := geoip2.Open(cityDBFile)
+	if err != nil {
+		logger.Get().Errorf("Error loading City database: %v", err)
+		if panicOnFail {
+			logger.Get().Fatal("Configured to faild with err: %v", err)
+		}
+	} else {
+		cityMux.Lock()
+		if cityDB != nil {
+			logger.Get().Debug("Closing old cityDB")
+			cityDB.Close()
+		}
+		cityDB = tmpDB
+		cityMux.Unlock()
+	}
+}
+
+func loadIspDB(panicOnFail bool) {
+	logger.Get().Infof("Loading geoip2 ISP database from: %s", ispDBFile)
+	tmpDB, err := geoip2.Open(ispDBFile)
+	if err != nil {
+		logger.Get().Errorf("Error loading ISP database: %v", err)
+		if panicOnFail {
+			logger.Get().Fatal("Configured to faild with err: %v", err)
+		}
+	} else {
+		ispMux.Lock()
+		if ispDB != nil {
+			logger.Get().Debug("Closing old ispDB")
+			ispDB.Close()
+		}
+		ispDB = tmpDB
+		ispMux.Unlock()
+	}
 }
 
 func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 	var err error
+	cityMux = &sync.RWMutex{}
+	ispMux = &sync.RWMutex{}
+	afGeoMux = &sync.RWMutex{}
 	afGeoFile = afGeoPath
-	cityDB, err = geoip2.Open(geoip2CityPath)
+	cityDBFile = geoip2CityPath
+	ispDBFile = geoip2IspPath
+
+	loadAFGeoIPData()
+	loadCityDB(true)
+	loadIspDB(true)
+
+	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		logger.Get().Fatal(err)
 	}
-	ispDB, err = geoip2.Open(geoip2IspPath)
-	if err != nil {
-		logger.Get().Fatal(err)
-	}
-	// update AF geo data (which come from consul) every 60 seconds
 	go func() {
+		timeoutAfterLastEvent := 5 * time.Second
+		defer logger.Get().Error("File watcher shutdown")
+		timers := map[string]*time.Timer{}
 		for {
-			logger.Get().Info("reloading AF geoip data")
-			reloadAFGeoIPData()
-			time.Sleep(60 * time.Second)
+			select {
+			case event, ok := <-watcher.Events:
+				if !ok {
+					logger.Get().Error("File watcher not OK")
+					return
+				}
+				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
+					if event.Name == cityDBFile || event.Name == ispDBFile || event.Name == afGeoFile {
+						logger.Get().Debugf("modified file (%v): %s", event.Op, event.Name)
+						if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
+							if found {
+								timers[event.Name].Stop()
+							}
+							switch event.Name {
+							case cityDBFile:
+								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadCityDB(false) })
+							case ispDBFile:
+								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadIspDB(false) })
+							case afGeoFile:
+								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadAFGeoIPData() })
+							default:
+								logger.Get().Errorf("Unknown modified file to process: %s", event.Name)
+							}
+						}
+					}
+				}
+			case err, ok := <-watcher.Errors:
+				logger.Get().Debugf("error: %v", err)
+				if !ok {
+					logger.Get().Debug("watcher not OK")
+					return
+				}
+			}
 		}
 	}()
+
+	for _, file := range []string{geoip2CityPath, geoip2IspPath, afGeoPath} {
+		logger.Get().Debugf("Watching %s file", file)
+		err = watcher.Add(filepath.Dir(file))
+		if err != nil {
+			logger.Get().Fatal(err)
+		}
+	}
 }
 
 type ExtraFieldsReader struct {
@@ -82,13 +178,11 @@ func (r *ExtraFieldsReader) With(extra map[string]interface{}) *ExtraFieldsReade
 	return r
 }
 
-//func populateExtraTags(r *http.Request, raw *[]byte, cityDB *geoip2.Reader, ispDB *geoip2.Reader, geo *confreader.AfGeo) []byte {
-
 func (r *ExtraFieldsReader) ReadLine() (line []byte, offset uint64, err error) {
 	line, offset, err = r.reader.ReadLine()
 
 	fields := new(ExtraFields)
-	fields.GeoOrigin(r.request, cityDB, ispDB)
+	fields.GeoOrigin(r.request)
 	fields.CloudFront = IsCloudfront(r.request)
 	fields.Host = GetNginxHostname(r.request)
 
