@@ -17,9 +17,9 @@ type GdprReader struct {
 func maskIP(ip net.IP) string {
 	var ipMask net.IPMask
 	if ip.DefaultMask() != nil {
-		ipMask = net.CIDRMask(24, 32)
+		ipMask = net.CIDRMask(0, 32)
 	} else {
-		ipMask = net.CIDRMask(48, 128)
+		ipMask = net.CIDRMask(0, 128)
 	}
 	return ip.Mask(ipMask).String()
 }
