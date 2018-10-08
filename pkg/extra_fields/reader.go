@@ -39,7 +39,7 @@ func loadCityDB(panicOnFail bool) {
 	if err != nil {
 		logger.Get().Errorf("Error loading City database: %v", err)
 		if panicOnFail {
-			logger.Get().Fatal("Configured to faild with err: %v", err)
+			logger.Get().Fatalf("Configured to fail with err: %v", err)
 		}
 	} else {
 		cityMux.Lock()
