@@ -21,7 +21,7 @@ type Geo struct {
 	defaultValue string
 }
 
-var DefaultValue string = "-"
+var DefaultValue = "-"
 
 //var IPs MyIPs
 
