@@ -2,7 +2,6 @@ package extra_fields
 
 import (
 	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/anchorfree/gpr-edge/pkg/confreader"
 	"github.com/golang/gddo/httputil/header"
 	geoip2 "github.com/oschwald/geoip2-golang"
 	"net"
@@ -28,10 +27,8 @@ func (f *ExtraFields) GeoOrigin(req *http.Request) {
 	ip := GetIPAdress(req)
 
 	f.fromISP(req, ip)
-	if confreader.IPs != nil {
-		if confreader.IPs.Found(ip) && IsCloudfront(req) == 1 {
-			return
-		}
+	if geoSet.Get(ip.String()) == "af" && IsCloudfront(req) == 1 {
+		return
 	}
 
 	f.countryName(req, ip)
