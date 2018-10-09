@@ -90,7 +90,7 @@ func Init(geoip2CityPath string, geoip2IspPath string, gSet *geo.Geo) {
 					return
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
-					if event.Name == cityDBFile || event.Name == ispDBFile || event.Name == geoSet.GeoFile {
+					if event.Name == cityDBFile || event.Name == ispDBFile {
 						logger.Get().Debugf("modified file (%v): %s", event.Op, event.Name)
 						if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
 							if found {
