@@ -3,9 +3,9 @@ package extra_fields
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/anchorfree/data-go/pkg/geo"
 	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/anchorfree/gpr-edge/pkg/confreader"
 	geoip2 "github.com/oschwald/geoip2-golang"
 	//"github.com/rjeczalik/notify"
 	"github.com/fsnotify/fsnotify"
@@ -20,18 +20,10 @@ var (
 	ispDB      *geoip2.Reader
 	cityDBFile string
 	ispDBFile  string
-	afGeoFile  string
 	cityMux    *sync.RWMutex
 	ispMux     *sync.RWMutex
-	afGeoMux   *sync.RWMutex
+	geoSet     *geo.Geo
 )
-
-func loadAFGeoIPData() {
-	afGeoMux.Lock()
-	logger.Get().Infof("Loading AF geoip data from: %s", afGeoFile)
-	confreader.ReadGeo(afGeoFile)
-	afGeoMux.Unlock()
-}
 
 func loadCityDB(panicOnFail bool) {
 	logger.Get().Infof("Loading geoip2 City database from: %s", cityDBFile)
@@ -71,16 +63,14 @@ func loadIspDB(panicOnFail bool) {
 	}
 }
 
-func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
+func Init(geoip2CityPath string, geoip2IspPath string, gSet *geo.Geo) {
 	var err error
 	cityMux = &sync.RWMutex{}
 	ispMux = &sync.RWMutex{}
-	afGeoMux = &sync.RWMutex{}
-	afGeoFile = afGeoPath
 	cityDBFile = geoip2CityPath
 	ispDBFile = geoip2IspPath
+	geoSet = gSet
 
-	loadAFGeoIPData()
 	loadCityDB(true)
 	loadIspDB(true)
 
@@ -100,7 +90,7 @@ func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 					return
 				}
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {
-					if event.Name == cityDBFile || event.Name == ispDBFile || event.Name == afGeoFile {
+					if event.Name == cityDBFile || event.Name == ispDBFile || event.Name == geoSet.GeoFile {
 						logger.Get().Debugf("modified file (%v): %s", event.Op, event.Name)
 						if timer, found := timers[event.Name]; !found || !timer.Reset(timeoutAfterLastEvent) {
 							if found {
@@ -111,8 +101,6 @@ func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadCityDB(false) })
 							case ispDBFile:
 								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadIspDB(false) })
-							case afGeoFile:
-								timers[event.Name] = time.AfterFunc(timeoutAfterLastEvent, func() { loadAFGeoIPData() })
 							default:
 								logger.Get().Errorf("Unknown modified file to process: %s", event.Name)
 							}
@@ -129,7 +117,7 @@ func Init(geoip2CityPath string, geoip2IspPath string, afGeoPath string) {
 		}
 	}()
 
-	for _, file := range []string{geoip2CityPath, geoip2IspPath, afGeoPath} {
+	for _, file := range []string{geoip2CityPath, geoip2IspPath} {
 		logger.Get().Debugf("Watching %s file", file)
 		err = watcher.Add(filepath.Dir(file))
 		if err != nil {

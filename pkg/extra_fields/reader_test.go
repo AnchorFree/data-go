@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/anchorfree/data-go/pkg/geo"
 	lor "github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
@@ -52,7 +53,8 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 	req.Header.Set("x_af_asdescription", fromAsDesc)
 	req.Header.Set("x_af_ispname", fromIsp)
 	req.Header.Set("x_af_orgname", fromOrgName)
-	Init("test-data/test-data/GeoIP2-City-Test.mmdb", "test-data/test-data/GeoIP2-ISP-Test.mmdb", "geo-test.conf")
+	geoSet = geo.NewGeo().FromFile("geo-test.conf")
+	Init("test-data/test-data/GeoIP2-City-Test.mmdb", "test-data/test-data/GeoIP2-ISP-Test.mmdb", geoSet)
 	extraFields := map[string]interface{}{
 		"server_ts": serverTs,
 		"client_ts": clientTs,
@@ -84,7 +86,8 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 
 func TestExtraFieldsFromIspDb(t *testing.T) {
 	// test with geo data from ISP mmdb
-	Init("test-data/test-data/GeoIP2-City-Test.mmdb", "test-data/test-data/GeoIP2-ISP-Test.mmdb", "geo-test.conf")
+	geoSet = geo.NewGeo().FromFile("geo-test.conf")
+	Init("test-data/test-data/GeoIP2-City-Test.mmdb", "test-data/test-data/GeoIP2-ISP-Test.mmdb", geoSet)
 	topic := "test"
 	path := fmt.Sprintf("/ula?report_type=%s", topic)
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
@@ -111,7 +114,8 @@ func TestExtraFieldsFromIspDb(t *testing.T) {
 
 func TestExtraFieldsFromCityDb(t *testing.T) {
 	// test with geo data from ISP mmdb
-	Init("test-data/test-data/GeoIP2-City-Test.mmdb", "test-data/test-data/GeoIP2-ISP-Test.mmdb", "geo-test.conf")
+	geoSet = geo.NewGeo().FromFile("geo-test.conf")
+	Init("test-data/test-data/GeoIP2-City-Test.mmdb", "test-data/test-data/GeoIP2-ISP-Test.mmdb", geoSet)
 	topic := "test"
 	path := fmt.Sprintf("/ula?report_type=%s", topic)
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
