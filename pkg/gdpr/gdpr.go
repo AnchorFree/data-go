@@ -8,7 +8,7 @@ import (
 	"regexp"
 )
 
-var ipv4Regex = regexp.MustCompile(`([0-9]{1,3}\.){3}[0-9 ]{1,3}`)
+var ipv4Regex = regexp.MustCompile(`([0-9]{1,3}\.){3}[0-9]{1,3}`)
 
 type Reader struct {
 	line_reader.I
@@ -37,8 +37,10 @@ func findIPs(msg []byte) [][]byte {
 
 func (r *Reader) ApplyGDPR(msg []byte) []byte {
 	for _, ip := range findIPs(msg) {
-		if r.geoSet.Get(string(ip)) != "af" {
-			msg = bytes.Replace(msg, ip, []byte(ipGDPR(string(ip))), -1)
+		if net.ParseIP(string(ip)) != nil {
+			if r.geoSet.Get(string(ip)) != "af" {
+				msg = bytes.Replace(msg, ip, []byte(ipGDPR(string(ip))), -1)
+			}
 		}
 	}
 	return msg
