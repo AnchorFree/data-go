@@ -52,7 +52,7 @@ func GetIPAdress(req *http.Request) net.IP {
 	}
 	realIP = net.ParseIP(remoteAddr)
 
-	for _, h := range []string{"X-Forwarded-For", "X-Real-Ip"} {
+	for _, h := range []string{"X-Real-Ip", "X-Forwarded-For"} {
 		if len(req.Header.Get(http.CanonicalHeaderKey(h))) > 0 {
 			addresses := header.ParseList(req.Header, http.CanonicalHeaderKey(h))
 			for i := 0; i < len(addresses); i++ {
@@ -83,7 +83,7 @@ func (f *ExtraFields) countryName(req *http.Request, ip net.IP) error {
 		}
 		f.Country = record.Country.IsoCode
 		if f.Country != "" {
-			f.CountrySource = "ngx.var.geoip_country_code"
+			f.CountrySource = "geoip"
 		}
 	} else {
 		f.Country = afCountry
@@ -105,7 +105,7 @@ func (f *ExtraFields) cityName(req *http.Request, ip net.IP) error {
 		}
 		f.City = record.City.Names["en"]
 		if f.City != "" {
-			f.CitySource = "ngx.var.geoip_country_code"
+			f.CitySource = "geoip"
 		}
 	} else {
 		f.City = afCity

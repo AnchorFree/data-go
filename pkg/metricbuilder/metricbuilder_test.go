@@ -145,7 +145,6 @@ func TestParsers_parse(t *testing.T) {
 	}
 
 	cfp := "test.yaml"
-	confFilePath = &cfp
 
 	for _, v := range testTypes {
 		var req *http.Request
