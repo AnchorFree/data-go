@@ -23,3 +23,12 @@ func TestGeo(t *testing.T) {
 	assert.Equalf(t, "af", g.Get("107.152.104.4"), "Did not find af record")
 	assert.Equalf(t, DefaultValue, g.Get("8.8.8.8"), "Should be default value")
 }
+
+func BenchmarkGeo(b *testing.B) {
+	g := NewGeo().FromFile("test-data/aws.conf")
+	b.ResetTimer()
+	ip := "123.123.123.123"
+	for i := 0; i < b.N; i++ {
+		g.Get(ip)
+	}
+}
