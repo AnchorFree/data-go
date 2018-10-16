@@ -1,9 +1,8 @@
 package geo
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGeo(t *testing.T) {
@@ -15,12 +14,16 @@ func TestGeo(t *testing.T) {
 		108.62.39.90 af;
 		199.115.116.166 af;
 		198.8.84.226 af;
+		198.8.84.226 af;
+		54.182.0.0/16 aws;
 		`)
-	g := NewGeo()
-	g.LoadFromBytes(data)
-	assert.Equalf(t, 7, g.Len(), "Amount of IPs does not match")
+	g := NewGeo().FromBytes(data)
+	assert.Equalf(t, 8, g.Len(), "Amount of IPs does not match")
 	assert.Equalf(t, "af", g.Get("184.170.253.178"), "Did not find af record")
 	assert.Equalf(t, "af", g.Get("107.152.104.4"), "Did not find af record")
+	assert.Truef(t, g.Match("198.8.84.226", "af"), "Did not match af record")
+	assert.Truef(t, g.Match("107.152.104.4", "af"), "Did not match af record")
+	assert.Falsef(t, g.Match("123.123.111.222", "af"), "Should not match record")
 	assert.Equalf(t, DefaultValue, g.Get("8.8.8.8"), "Should be default value")
 }
 
@@ -29,6 +32,6 @@ func BenchmarkGeo(b *testing.B) {
 	b.ResetTimer()
 	ip := "123.123.123.123"
 	for i := 0; i < b.N; i++ {
-		g.Get(ip)
+		g.Match(ip, "aws")
 	}
 }
