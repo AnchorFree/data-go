@@ -2,14 +2,15 @@ package geo
 
 import (
 	"bytes"
-	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/fsnotify/fsnotify"
 	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/fsnotify/fsnotify"
 )
 
 type Geo struct {
@@ -17,7 +18,7 @@ type Geo struct {
 	geoMux  *sync.RWMutex
 	watcher *fsnotify.Watcher
 	//afGeoFile  string
-	records      map[string]string
+	records      map[*net.IPNet]string
 	defaultValue string
 }
 
@@ -100,35 +101,49 @@ func (g *Geo) loadFileData() {
 }
 
 func (g *Geo) LoadFromBytes(data []byte) {
-	ipList := map[string]string{}
+	netList := map[*net.IPNet]string{}
 	lines := bytes.Split(data, []byte("\n"))
 	for _, ipline := range lines {
 		trimmedLine := bytes.TrimRight(bytes.TrimSpace(ipline), ";")
 		if len(trimmedLine) > 0 {
 			recordParts := bytes.Split(trimmedLine, []byte(" "))
+			var netAddr []byte
 			if len(recordParts) == 2 {
-				ip := net.ParseIP(string(recordParts[0]))
-				if ip != nil {
-					ipList[string(recordParts[0])] = string(recordParts[1])
+				addr := bytes.Split(recordParts[0], []byte("/"))
+				if len(addr) == 2 {
+					netAddr = recordParts[0]
 				} else {
-					logger.Get().Warnf("Could not parse IP from geo file %s: %s", g.GeoFile, recordParts[0])
+					netAddr = addr[0]
+					netAddr = append(netAddr, []byte("/32")...)
 				}
+				_, ipNet, err := net.ParseCIDR(string(netAddr))
+				if err != nil {
+					logger.Get().Warnf("Could not parse IP from geo file %s: %s", g.GeoFile, recordParts[0])
+					continue
+				}
+				netList[ipNet] = string(recordParts[1])
 			} else {
 				logger.Get().Warnf("Malformed geo record in %s: %s", g.GeoFile, ipline)
 			}
 		}
 	}
-	logger.Get().Warnf("Loaded %d records from %s", len(ipList), g.GeoFile)
-	g.records = ipList
+	logger.Get().Warnf("Loaded %d records from %s", len(netList), g.GeoFile)
+	g.records = netList
 }
 
 func (g *Geo) Get(ip string) string {
-	g.geoMux.RLock()
-	val, found := g.records[ip]
-	g.geoMux.RUnlock()
-	if found {
-		return val
+	ipAddr := net.ParseIP(ip)
+	if ipAddr == nil {
+		return g.defaultValue
 	}
+	g.geoMux.RLock()
+	defer g.geoMux.RUnlock()
+	for network, origin := range g.records {
+		if network.Contains(ipAddr) {
+			return origin
+		}
+	}
+
 	return g.defaultValue
 }
 
