@@ -11,6 +11,7 @@ import (
 
 	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/fsnotify/fsnotify"
+	"github.com/yl2chen/cidranger"
 )
 
 type Geo struct {
@@ -18,7 +19,7 @@ type Geo struct {
 	geoMux  *sync.RWMutex
 	watcher *fsnotify.Watcher
 	//afGeoFile  string
-	records      map[*net.IPNet]string
+	rangers      map[string]cidranger.Ranger
 	defaultValue string
 }
 
@@ -95,20 +96,26 @@ func (g *Geo) loadFileData() {
 		logger.Get().Fatalf("Error loading geo data from %s: %v", g.GeoFile, err)
 		return
 	}
-	g.geoMux.Lock()
-	g.LoadFromBytes(*data)
-	g.geoMux.Unlock()
+	g.FromBytes(*data)
 }
 
-func (g *Geo) LoadFromBytes(data []byte) {
-	netList := map[*net.IPNet]string{}
+func (g *Geo) FromBytes(data []byte) *Geo {
+	rangers := map[string]cidranger.Ranger{}
 	lines := bytes.Split(data, []byte("\n"))
 	for _, ipline := range lines {
 		trimmedLine := bytes.TrimRight(bytes.TrimSpace(ipline), ";")
 		if len(trimmedLine) > 0 {
 			recordParts := bytes.Split(trimmedLine, []byte(" "))
-			var netAddr []byte
-			if len(recordParts) == 2 {
+			var (
+				ranger  cidranger.Ranger
+				netAddr []byte
+				found   bool
+			)
+			if len(recordParts) == 2 && len(recordParts[1]) > 0 {
+				ranger, found = rangers[string(recordParts[1])]
+				if !found {
+					ranger = cidranger.NewPCTrieRanger()
+				}
 				addr := bytes.Split(recordParts[0], []byte("/"))
 				if len(addr) == 2 {
 					netAddr = recordParts[0]
@@ -121,16 +128,21 @@ func (g *Geo) LoadFromBytes(data []byte) {
 					logger.Get().Warnf("Could not parse IP from geo file %s: %s", g.GeoFile, recordParts[0])
 					continue
 				}
-				netList[ipNet] = string(recordParts[1])
+				ranger.Insert(cidranger.NewBasicRangerEntry(*ipNet))
+				rangers[string(recordParts[1])] = ranger
 			} else {
 				logger.Get().Warnf("Malformed geo record in %s: %s", g.GeoFile, ipline)
 			}
 		}
 	}
-	logger.Get().Warnf("Loaded %d records from %s", len(netList), g.GeoFile)
-	g.records = netList
+	g.geoMux.Lock()
+	g.rangers = rangers
+	g.geoMux.Unlock()
+	logger.Get().Warnf("Loaded %d records from %s", g.Len(), g.GeoFile)
+	return g
 }
 
+// Returns first match label
 func (g *Geo) Get(ip string) string {
 	ipAddr := net.ParseIP(ip)
 	if ipAddr == nil {
@@ -138,17 +150,47 @@ func (g *Geo) Get(ip string) string {
 	}
 	g.geoMux.RLock()
 	defer g.geoMux.RUnlock()
-	for network, origin := range g.records {
-		if network.Contains(ipAddr) {
-			return origin
+	for label, ranger := range g.rangers {
+		contains, err := ranger.Contains(ipAddr)
+		if err != nil {
+			logger.Get().Warnf("IP Ranger lookup err: %v", err)
+		}
+		if contains {
+			return label
 		}
 	}
-
 	return g.defaultValue
 }
 
+func (g *Geo) Match(ip string, label string) bool {
+	ipAddr := net.ParseIP(ip)
+	if ipAddr == nil {
+		return false
+	}
+	g.geoMux.RLock()
+	defer g.geoMux.RUnlock()
+	ranger, found := g.rangers[label]
+	if found {
+		contains, err := ranger.Contains(ipAddr)
+		if err != nil {
+			logger.Get().Warnf("IP Ranger lookup err: %v", err)
+		}
+		return contains
+	}
+	return false
+}
+
 func (g *Geo) Len() int {
-	return len(g.records)
+	ret := 0
+	for _, ranger := range g.rangers {
+		_, wildnet, _ := net.ParseCIDR("0.0.0.0/0")
+		rangerEntries, err := ranger.CoveredNetworks(*wildnet)
+		if err != nil {
+			logger.Get().Errorf("IP Ranger ContainingNetworks err: %v", err)
+		}
+		ret = ret + len(rangerEntries)
+	}
+	return ret
 }
 
 func ReadFile(filename string) (*[]byte, error) {
