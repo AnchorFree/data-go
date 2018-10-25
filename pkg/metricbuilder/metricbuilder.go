@@ -89,6 +89,9 @@ func Init(expProps []ExporterProps, promRegistry *prometheus.Registry) {
 				}
 			}
 		}
+		if len(pc.Names) != len(pc.Paths) {
+			logger.Get().Fatal("Error initializing merged paths config")
+		}
 		pathConfigs = append(pathConfigs, pc)
 	}
 	for _, v := range expConfigs {
@@ -110,11 +113,6 @@ func Init(expProps []ExporterProps, promRegistry *prometheus.Registry) {
 	}
 }
 
-//entry point
-func PutIncomeMessage(mp MessagePayload) {
-	createMetric(&mp.Msg, &mp.Topic)
-}
-
 func RunLRU() {
 	go func() {
 		for {
@@ -126,10 +124,10 @@ func RunLRU() {
 	}()
 }
 
-func isCountableTopic(topic *string, exp *ExporterProps) bool {
+func isCountableTopic(topic string, exp *ExporterProps) bool {
 	if len(exp.Topics) > 0 {
 		for i := range exp.Topics {
-			if *topic == exp.Topics[i] {
+			if topic == exp.Topics[i] {
 				return true
 			}
 		}
@@ -138,16 +136,16 @@ func isCountableTopic(topic *string, exp *ExporterProps) bool {
 	return false
 }
 
-func createMetric(message *[]byte, topic *string) {
+func updateMetric(message []byte, topic string) {
 	var m metric
-	for k, v := range expConfigs {
-		if !isCountableTopic(topic, &v) {
+	for k, expConf := range expConfigs {
+		if !isCountableTopic(topic, &expConf) {
 			continue
 		}
 		skip := false
 
 		tags := fetchMessageTags(message, pathConfigs[k])
-		for _, av := range v.Aggregations {
+		for _, av := range expConf.Aggregations {
 			match := false
 			if len(av.Values) > 0 {
 				for _, v := range av.Values {
@@ -162,7 +160,7 @@ func createMetric(message *[]byte, topic *string) {
 			}
 		}
 		if !skip && len(tags) > 0 {
-			m.Name = v.Metric.Name
+			m.Name = expConf.Metric.Name
 			m.Tags = tags
 			m.UpdatedAt = internalTime
 
@@ -172,9 +170,9 @@ func createMetric(message *[]byte, topic *string) {
 	}
 }
 
-func fetchMessageTags(message *[]byte, pc PathConfig) map[string]string {
+func fetchMessageTags(message []byte, pc PathConfig) map[string]string {
 	tags := pc.DefaultValues
-	jsonparser.EachKey(*message, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
+	jsonparser.EachKey(message, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
 		tags[pc.Names[idx]] = string(value)
 	}, pc.Paths...)
 	return tags
@@ -238,9 +236,9 @@ func NewReader(lr line_reader.I, topic string) *Reader {
 func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
 	const maxReplacements = 1
 	line, offset, err = r.reader.ReadLine()
-	PutIncomeMessage(MessagePayload{
-		Msg:   bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+r.topic+`",`), maxReplacements),
-		Topic: r.topic,
-	})
+	updateMetric(
+		bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+r.topic+`",`), maxReplacements),
+		r.topic,
+	)
 	return line, offset, err
 }
