@@ -13,19 +13,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type ExporterProps struct {
-	Name   string
+type Props struct {
+	Metrics map[string]MetricProps
+}
+
+type MetricProps struct {
 	Topics []string
-	Metric struct {
-		Name string
-		Help string
-	}
-	Aggregations []struct {
-		Name         string
-		Modify       string
-		Path         []string
-		UnpackedPath [][]string
-		Values       []string
+	Help   string
+	Labels map[string]struct {
+		Modify string
+		Paths  []string
+		Values []string
 	}
 }
 
@@ -42,7 +40,7 @@ type MessagePayload struct {
 	Topic string
 }
 
-var expConfigs []ExporterProps
+var metricConfigs map[string]MetricProps
 var LRUTimeout = 1 * time.Minute
 
 //modify to read from configuration file
@@ -64,7 +62,7 @@ type PathConfig struct {
 	DefaultValues map[string]string
 }
 
-var pathConfigs = []PathConfig{}
+var pathConfigs = map[string]PathConfig{}
 
 func init() {
 	go func() {
@@ -73,43 +71,44 @@ func init() {
 	}()
 }
 
-func Init(expProps []ExporterProps, promRegistry *prometheus.Registry) {
+func Init(config Props, promRegistry *prometheus.Registry) {
 	prom = promRegistry
-	expConfigs = expProps
-	for i, e := range expConfigs {
+	metricConfigs = config.Metrics
+	//for i, e := range metricConfigs {
+	for metricName, metricConfig := range metricConfigs {
 		pc := PathConfig{DefaultValues: map[string]string{}}
-		for j, a := range e.Aggregations {
-			for _, v := range a.Path {
-				unpackedPath := strings.Split(v, ".")
-				expConfigs[i].Aggregations[j].UnpackedPath = append(expConfigs[i].Aggregations[j].UnpackedPath, unpackedPath)
-				if len(v) > 0 {
-					pc.Names = append(pc.Names, a.Name)
-					pc.DefaultValues[a.Name] = ""
-					pc.Paths = append(pc.Paths, unpackedPath)
+		//for j, a := range e.Labels {
+		for labelName, labelConfig := range metricConfig.Labels {
+			for _, path := range labelConfig.Paths {
+				splitPath := strings.Split(path, ".")
+				if len(path) > 0 {
+					pc.Names = append(pc.Names, labelName)
+					pc.DefaultValues[labelName] = ""
+					pc.Paths = append(pc.Paths, splitPath)
 				}
 			}
 		}
 		if len(pc.Names) != len(pc.Paths) {
 			logger.Get().Fatal("Error initializing merged paths config")
 		}
-		pathConfigs = append(pathConfigs, pc)
+		pathConfigs[metricName] = pc
 	}
-	for _, v := range expConfigs {
-		aggregationsArray := func() []string {
+	for metricName, metricConfig := range metricConfigs {
+		labelsArray := func() []string {
 			var tmp []string
-			for _, val := range v.Aggregations {
-				tmp = append(tmp, val.Name)
+			for labelName, _ := range metricConfig.Labels {
+				tmp = append(tmp, labelName)
 			}
 			return tmp
 		}
-		metricsVec[v.Metric.Name] = prometheus.NewCounterVec(
+		metricsVec[metricName] = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: v.Metric.Name,
-				Help: v.Metric.Help,
+				Name: metricName,
+				Help: metricConfig.Help,
 			},
-			aggregationsArray(),
+			labelsArray(),
 		)
-		prom.MustRegister(metricsVec[v.Metric.Name])
+		prom.MustRegister(metricsVec[metricName])
 	}
 }
 
@@ -124,10 +123,10 @@ func RunLRU() {
 	}()
 }
 
-func isCountableTopic(topic string, exp *ExporterProps) bool {
-	if len(exp.Topics) > 0 {
-		for i := range exp.Topics {
-			if topic == exp.Topics[i] {
+func isCountableTopic(topic string, mConfig *MetricProps) bool {
+	if len(mConfig.Topics) > 0 {
+		for i := range mConfig.Topics {
+			if topic == mConfig.Topics[i] {
 				return true
 			}
 		}
@@ -138,18 +137,18 @@ func isCountableTopic(topic string, exp *ExporterProps) bool {
 
 func updateMetric(message []byte, topic string) {
 	var m metric
-	for k, expConf := range expConfigs {
-		if !isCountableTopic(topic, &expConf) {
+	for metricName, metricConf := range metricConfigs {
+		if !isCountableTopic(topic, &metricConf) {
 			continue
 		}
 		skip := false
 
-		tags := fetchMessageTags(message, pathConfigs[k])
-		for _, av := range expConf.Aggregations {
+		tags := fetchMessageTags(message, pathConfigs[metricName])
+		for labelName, labelConfig := range metricConf.Labels {
 			match := false
-			if len(av.Values) > 0 {
-				for _, v := range av.Values {
-					if v == tags[av.Name] {
+			if len(labelConfig.Values) > 0 {
+				for _, v := range labelConfig.Values {
+					if v == tags[labelName] {
 						match = true
 					}
 				}
@@ -160,7 +159,7 @@ func updateMetric(message []byte, topic string) {
 			}
 		}
 		if !skip && len(tags) > 0 {
-			m.Name = expConf.Metric.Name
+			m.Name = metricName
 			m.Tags = tags
 			m.UpdatedAt = internalTime
 

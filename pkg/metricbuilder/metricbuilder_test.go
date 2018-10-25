@@ -2,17 +2,65 @@ package metricbuilder
 
 import (
 	"bytes"
-	"compress/gzip"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-
-	"github.com/gorilla/mux"
+	"fmt"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v2"
+	"testing"
 )
 
-func TestParsers_parse(t *testing.T) {
-	testMsgBody := []byte(`{
+var testConfig = []byte(`
+gpr_first:
+  help: "gpr_first help"
+  topics:
+   - "test"
+  labels:
+    topic:
+      paths:
+      - "topic"
+      values: []
+    platform:
+      modify: "tolower"
+      paths:
+      - "payload.af_platform"
+      - "properties.af_platform"
+      values: []
+    app_version:
+      modify: "tolower"
+      paths:
+      - "payload.app_version"
+      - "properties.app_version"
+      values: []
+    from_country:
+      paths:
+      - "from_country"
+      values: []
+    error_code:
+      paths:
+      - "payload.error_code"
+      - "properties.error_code"
+      values: []
+    reason:
+      modify: "tolower"
+      paths:
+      - "payload.reason"
+      - "properties.reason"
+      values: []
+    first:
+      paths:
+      - "payload.first"
+      - "properties.first"
+      values: []
+    event:
+      paths:
+      - "event"
+      values:
+      - app_start
+      - connection_start
+      - connection_end
+`)
+
+var testString = []byte(`{
 		"event":"app_start",
 		"ts":1521800858842,
 		"payload":{
@@ -131,70 +179,7 @@ func TestParsers_parse(t *testing.T) {
 		"server_ts":1521800927956,
 		"client_ts":1521800918976
 		}
-	`)
-
-	testTypes := []string{"gzip", "plain"}
-
-	tables := []struct {
-		fieldName  string
-		fieldValue string
-	}{
-		{"error_code", ""},
-		{"reason", ""},
-		{"event", "app_start"},
-	}
-
-	cfp := "test.yaml"
-
-	for _, v := range testTypes {
-		var req *http.Request
-		var err error
-		if v == "gzip" {
-			var buf bytes.Buffer
-			g := gzip.NewWriter(&buf)
-			g.Write(testMsgBody)
-			// we need to close gzip writer before using it
-			g.Close()
-			req, err = http.NewRequest("POST", "/api/report/test", bytes.NewReader(buf.Bytes()))
-			assert.Nil(t, err)
-
-			req.Header.Set("Content-Type", "text/plain")
-			req.Header.Set("Content-Encoding", "gzip")
-		} else {
-			req, err = http.NewRequest("POST", "/api/report/test", bytes.NewReader(testMsgBody))
-			assert.Nil(t, err)
-		}
-
-		config = getConfig()
-		config.Global.Topics = []string{"test"}
-
-		H := &edgeHandler{
-			cityDB: nil,
-			ispDB:  nil,
-		}
-
-		router := mux.NewRouter()
-		router.HandleFunc("/api/report/{topic}", H.gatewayHandler)
-
-		rr := httptest.NewRecorder()
-		router.ServeHTTP(rr, req)
-
-		assert.Equalf(t, http.StatusOK, rr.Code, "Failed http status code for context %s. Expected: [%v] Got: [%v]", v, http.StatusOK, rr.Code)
-		//assert.Equal(t, 1, len(incomeMessageChannel), "Message didn't get into income channel in context %s", v)
-
-		go parseIncomeMessageBody()
-
-		testMetric := <-metricsChannel
-
-		for k, v := range testMetric.Tags {
-			for _, table := range tables {
-				if k == table.fieldName {
-					assert.Equalf(t, table.fieldValue, v, "Failed getting [%v] field. Expected: [%v] Got: [%v]", table.fieldName, table.fieldValue, v)
-				}
-			}
-		}
-	}
-}
+`)
 
 func TestModifyValue(t *testing.T) {
 	table := []struct {
@@ -214,63 +199,89 @@ func TestModifyValue(t *testing.T) {
 
 }
 
-func TestMultiPath(t *testing.T) {
-	config1 := []byte(`
-exporters:
-- name: "GPR breakdown"
-  metric:
-    name: "gpr_breakdown"
-    help: "gpr_breakdown help"
-  aggregations:
-  - name: "platform"
-    path:
-    - "payload.platform"
-    - "properties.platform"
-    values: []
-`)
-	message1 := []byte(`{
-		"event":"app_start",
-		"payload":{
-			"platform":"Android",
-		},
-		"properties": {
-			"platform": "Windows",
-		}
-		}
-	`)
-	message2 := []byte(`{
-		"event":"app_start",
-		"properties": {
-			"platform": "Windows",
-		}
-		}
-	`)
-	message3 := []byte(`{
-		"event":"app_start",
-		}`)
-	message4 := []byte(`{
-		"event":"app_start",
-		"payload":{
-			"platform":"Android",
-		}
-		}
-	`)
-	table := []struct {
-		Message  *[]byte
-		Config   *[]byte
-		Fields   string
+func TestFetchMessageTags(t *testing.T) {
+	testTable := []struct {
+		Name     string
+		Message  []byte
+		Config   []byte
+		Field    string
 		Expected string
 	}{
-		{&message1, &config1, "platform", "Android"},
-		{&message2, &config1, "platform", "Windows"},
-		{&message3, &config1, "platform", ""},
-		{&message4, &config1, "platform", "Android"},
+		{
+			"simple properties match",
+			[]byte(`{"event":"app_start","properties":{"af_platform":"Windows"}}`),
+			testConfig,
+			"platform",
+			"Windows",
+		}, {
+			"simple payload match",
+			[]byte(`{ "event":"app_start","payload":{"af_platform":"Android"}}`),
+			testConfig,
+			"platform",
+			"Android",
+		}, {
+			"platform match with two possible variants",
+			[]byte(`{"event":"app_start","payload":{"af_platform":"Android"},"properties":{"af_platform":"Windows"}}`),
+			testConfig,
+			"platform",
+			"Windows", //gets overwritten by the latest match
+		}, {
+			"missing af_platform field",
+			[]byte(`{"event":"app_start"}`),
+			testConfig,
+			"platform",
+			"",
+		},
 	}
 
-	for _, v := range table {
-		config = parseConfig(v.Config)
-		av := config.Exporters[0].Aggregations[0]
-		_, value := filterMessage(v.Message, av.Name, av.UnpackedPath, av.Values)
-		assert.Equal(t, v.Expected, value, "Expected different result")
+	for testIndex, test := range testTable {
+		//topic := "test"
+		metricName := "gpr_first"
+		prom := prometheus.NewRegistry()
+		mConfs := HelperMetricsConfigFromBytes(t, test.Config)
+		Init(Props{Metrics: mConfs}, prom)
+		//_, value := filterMessage(v.Message, av.Name, av.UnpackedPath, av.Values)
+		//pathConfigs is a global var that gets filled in Init()
+		tags := fetchMessageTags(test.Message, pathConfigs[metricName])
+		fmt.Printf("tags: %+v\n", tags)
+		assert.Equalf(t, test.Expected, tags[test.Field], `test #%d: %s`, testIndex, test.Name)
 	}
+}
+
+func BenchmarkPutIncomingMessage(b *testing.B) {
+	prom := prometheus.NewRegistry()
+	mConfs := HelperMetricsConfigFromBytes(b, testConfig)
+	topic := "test"
+	Init(Props{Metrics: mConfs}, prom)
+
+	b.ResetTimer()
+	msg := HelperFlattenMessage(b, testString)
+	for i := 0; i < b.N; i++ {
+		updateMetric(msg, topic)
+	}
+	b.StopTimer()
+
+	metrics, err := prom.Gather()
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+	}
+	for _, m := range metrics {
+		fmt.Printf("metric: %s\n", m.String())
+	}
+}
+
+func HelperMetricsConfigFromBytes(t testing.TB, data []byte) map[string]MetricProps {
+	var metricConfigs map[string]MetricProps
+	if err := yaml.Unmarshal(data, &metricConfigs); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	return metricConfigs
+}
+
+func HelperFlattenMessage(t testing.TB, m []byte) []byte {
+	return bytes.Replace(
+		bytes.Replace(testString, []byte("\n"), []byte(""), -1),
+		[]byte("\t"),
+		[]byte(""), -1,
+	)
 }
