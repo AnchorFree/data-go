@@ -190,39 +190,6 @@ func modifyValue(modify *string, value string) string {
 	return value
 }
 
-func filterMessage(message *[]byte, fieldName string, paths [][]string, values []string) (string, string) {
-	var (
-		val []byte
-		err error
-	)
-	for _, path := range paths {
-		val, _, _, err = jsonparser.Get(*message, path...)
-		if err != nil && err.Error() == "Key path not found" {
-			continue
-		} else if err != nil {
-			logger.Get().Warnf("error: %v", err)
-		}
-
-		if len(val) > 0 {
-			break
-		}
-	}
-
-	if len(values) == 0 {
-		if len(val) == 0 {
-			return fieldName, ""
-		}
-		return fieldName, string(val)
-	}
-
-	for _, v := range values {
-		if string(val) == v {
-			return fieldName, v
-		}
-	}
-	return "", ""
-}
-
 func addMetricToLRU(m *metric) {
 	tagsInline := string("")
 	// map is not sorted in Go
