@@ -2,7 +2,6 @@ package metricbuilder
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -10,15 +9,27 @@ import (
 
 	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/anchorfree/gpr-edge/pkg/confreader"
 	"github.com/buger/jsonparser"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	metricsChannelBufferLength = uint8(50)
-	incomeChannelBufferLength  = uint8(50)
-)
+type ExporterProps struct {
+	Name   string
+	Topics []string
+	Metric struct {
+		Name string
+		Help string
+	}
+	Aggregations []struct {
+		Name         string
+		Modify       string
+		Path         []string
+		UnpackedPath [][]string
+		Values       []string
+	}
+}
+
+var internalTime = time.Now()
 
 type metric struct {
 	Name      string
@@ -31,39 +42,56 @@ type MessagePayload struct {
 	Topic string
 }
 
-var conf *confreader.Configuration
+var expConfigs []ExporterProps
+var LRUTimeout = 1 * time.Minute
 
 //modify to read from configuration file
 var timeBucket float64 = 5.0
-var numParsers int = 5
-var numReaders int = 2
 
 var (
-	incomeMessageChannel = make(chan MessagePayload, incomeChannelBufferLength)
-	metricsChannel       = make(chan metric, metricsChannelBufferLength)
-	metricsVec           = make(map[string]*prometheus.CounterVec)
-	metricsLRU           = map[string]metric{}
-)
-var (
-	incomeChannelCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "gpr_exporter_income_message_queue",
-		Help: "Current capacity of the incoming message queue.",
-	})
-	metricsChannelCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "gpr_exporter_parsed_metrics_queue",
-		Help: "Current capacity of the parsed metrics queue.",
-	})
+	metricsVec = make(map[string]*prometheus.CounterVec)
+	metricsLRU = map[string]metric{}
 )
 
 var (
-	mutex = &sync.Mutex{}
-	prom  *prometheus.Registry
+	mutexLRU = &sync.Mutex{}
+	prom     *prometheus.Registry
 )
 
-func Init(cfg *confreader.Configuration, promRegistry *prometheus.Registry) {
+type PathConfig struct {
+	Names         []string
+	Paths         [][]string
+	DefaultValues map[string]string
+}
+
+var pathConfigs = []PathConfig{}
+
+func init() {
+	go func() {
+		internalTime = time.Now()
+		time.Sleep(1 * time.Second)
+	}()
+}
+
+func Init(expProps []ExporterProps, promRegistry *prometheus.Registry) {
 	prom = promRegistry
-	conf = cfg
-	for _, v := range cfg.Exporters {
+	expConfigs = expProps
+	for i, e := range expConfigs {
+		pc := PathConfig{DefaultValues: map[string]string{}}
+		for j, a := range e.Aggregations {
+			for _, v := range a.Path {
+				unpackedPath := strings.Split(v, ".")
+				expConfigs[i].Aggregations[j].UnpackedPath = append(expConfigs[i].Aggregations[j].UnpackedPath, unpackedPath)
+				if len(v) > 0 {
+					pc.Names = append(pc.Names, a.Name)
+					pc.DefaultValues[a.Name] = ""
+					pc.Paths = append(pc.Paths, unpackedPath)
+				}
+			}
+		}
+		pathConfigs = append(pathConfigs, pc)
+	}
+	for _, v := range expConfigs {
 		aggregationsArray := func() []string {
 			var tmp []string
 			for _, val := range v.Aggregations {
@@ -80,54 +108,25 @@ func Init(cfg *confreader.Configuration, promRegistry *prometheus.Registry) {
 		)
 		prom.MustRegister(metricsVec[v.Metric.Name])
 	}
-	prom.MustRegister(incomeChannelCapacity)
-	prom.MustRegister(metricsChannelCapacity)
-
 }
 
+//entry point
 func PutIncomeMessage(mp MessagePayload) {
-	incomeMessageChannel <- mp
+	createMetric(&mp.Msg, &mp.Topic)
 }
 
-func ParseIncomeMessageBody() {
-	for m := range incomeMessageChannel {
-		createMetric(&m.Msg, &m.Topic)
-	}
-}
-
-func Run() {
-	for i := 0; i < numReaders; i++ {
-		go func() {
-			for {
-				cm := <-metricsChannel
-				metricsVec[cm.Name].With(cm.Tags).Inc()
-				addMetricToLRU(&cm)
-			}
-		}()
-	}
-	for i := 0; i < numParsers; i++ {
-		go func() {
-			ParseIncomeMessageBody()
-		}()
-	}
+func RunLRU() {
 	go func() {
 		for {
 			for k, v := range metricsVec {
 				purgeOldMetrics(k, v)
 			}
-			time.Sleep(time.Duration(5000 * time.Millisecond))
-		}
-	}()
-	go func() {
-		for {
-			incomeChannelCapacity.Set(float64(len(incomeMessageChannel)))
-			metricsChannelCapacity.Set(float64(len(metricsChannel)))
-			time.Sleep(time.Duration(50 * time.Millisecond))
+			time.Sleep(LRUTimeout)
 		}
 	}()
 }
 
-func isCountableTopic(topic *string, exp *confreader.Exporter) bool {
+func isCountableTopic(topic *string, exp *ExporterProps) bool {
 	if len(exp.Topics) > 0 {
 		for i := range exp.Topics {
 			if *topic == exp.Topics[i] {
@@ -140,42 +139,45 @@ func isCountableTopic(topic *string, exp *confreader.Exporter) bool {
 }
 
 func createMetric(message *[]byte, topic *string) {
-
 	var m metric
-
-	for _, v := range conf.Exporters {
-
+	for k, v := range expConfigs {
 		if !isCountableTopic(topic, &v) {
 			continue
 		}
-
 		skip := false
 
-		tags := make(map[string]string)
-
+		tags := fetchMessageTags(message, pathConfigs[k])
 		for _, av := range v.Aggregations {
-
-			fieldName, fieldValue := filterMessage(message, av.Name, av.UnpackedPath, av.Values)
-
-			if fieldName == "" {
-				skip = true
+			match := false
+			if len(av.Values) > 0 {
+				for _, v := range av.Values {
+					if v == tags[av.Name] {
+						match = true
+					}
+				}
+				if !match {
+					skip = true
+					break
+				}
 			}
-			fieldValue = modifyValue(&av.Modify, fieldValue)
-			tags[fieldName] = fieldValue
 		}
-
-		if skip {
-			continue
-		}
-
-		if len(tags) > 0 {
+		if !skip && len(tags) > 0 {
 			m.Name = v.Metric.Name
 			m.Tags = tags
-			m.UpdatedAt = time.Now()
+			m.UpdatedAt = internalTime
 
-			metricsChannel <- m
+			metricsVec[m.Name].With(m.Tags).Inc()
+			addMetricToLRU(&m)
 		}
 	}
+}
+
+func fetchMessageTags(message *[]byte, pc PathConfig) map[string]string {
+	tags := pc.DefaultValues
+	jsonparser.EachKey(*message, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
+		tags[pc.Names[idx]] = string(value)
+	}, pc.Paths...)
+	return tags
 }
 
 func modifyValue(modify *string, value string) string {
@@ -189,10 +191,10 @@ func modifyValue(modify *string, value string) string {
 }
 
 func filterMessage(message *[]byte, fieldName string, paths [][]string, values []string) (string, string) {
-
-	var val []byte
-	var err error
-
+	var (
+		val []byte
+		err error
+	)
 	for _, path := range paths {
 		val, _, _, err = jsonparser.Get(*message, path...)
 		if err != nil && err.Error() == "Key path not found" {
@@ -223,7 +225,6 @@ func filterMessage(message *[]byte, fieldName string, paths [][]string, values [
 
 func addMetricToLRU(m *metric) {
 	tagsInline := string("")
-
 	// map is not sorted in Go
 	// but we need to keep order
 	var keys []string
@@ -233,46 +234,45 @@ func addMetricToLRU(m *metric) {
 	sort.Strings(keys)
 
 	for _, v := range keys {
-		tagsInline += fmt.Sprintf(" %s", m.Tags[v])
+		tagsInline += " " + m.Tags[v]
 	}
 
-	mutex.Lock()
+	mutexLRU.Lock()
 	metricsLRU[m.Name+" "+tagsInline[1:]] = *m
-	mutex.Unlock()
+	mutexLRU.Unlock()
 }
 
 func purgeOldMetrics(metricName string, vec *prometheus.CounterVec) {
-
-	timeNow := time.Now()
-	mutex.Lock()
+	mutexLRU.Lock()
 	for k, v := range metricsLRU {
 		if metricName == v.Name {
-			if timeNow.Sub(v.UpdatedAt).Minutes() > timeBucket {
+			if internalTime.Sub(v.UpdatedAt).Minutes() > timeBucket {
 				vec.Delete(v.Tags)
 				delete(metricsLRU, k)
 			}
 		}
 	}
-	mutex.Unlock()
+	mutexLRU.Unlock()
 }
 
-type MetricBuilderReader struct {
+type Reader struct {
 	line_reader.I
 	reader line_reader.I
 	topic  string
 }
 
-func NewMetricBuilderReader(lr line_reader.I, topic string) *MetricBuilderReader {
-	return &MetricBuilderReader{
+func NewReader(lr line_reader.I, topic string) *Reader {
+	return &Reader{
 		reader: lr,
 		topic:  topic,
 	}
 }
 
-func (r *MetricBuilderReader) ReadLine() (line []byte, offset uint64, err error) {
+func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
+	const maxReplacements = 1
 	line, offset, err = r.reader.ReadLine()
 	PutIncomeMessage(MessagePayload{
-		Msg:   bytes.Replace(line, []byte("}"), []byte(", \"topic\":\""+r.topic+"\"}"), bytes.LastIndex(line, []byte("}"))),
+		Msg:   bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+r.topic+`",`), maxReplacements),
 		Topic: r.topic,
 	})
 	return line, offset, err
