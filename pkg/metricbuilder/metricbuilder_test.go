@@ -216,14 +216,16 @@ func TestFetchMessageTags(t *testing.T) {
 			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"Windows",
-		}, {
+		},
+		{
 			"simple payload match",
 			[]byte(`{ "event":"app_start","payload":{"platform":"Android"}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"Android",
-		}, {
+		},
+		{
 			"platform match with two possible variants",
 			[]byte(`{"event":"app_start","payload":{"platform":"Android"},"properties":{"platform":"Windows"}}`),
 			testConfig,
@@ -231,84 +233,96 @@ func TestFetchMessageTags(t *testing.T) {
 			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"Windows", //gets overwritten by the latest match
-		}, {
+		},
+		{
 			"missing af_platform field",
 			[]byte(`{"event":"app_start"}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"no path",
 			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
 			testConfig,
 			[]byte(`{platform: {paths: []}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"empty path",
 			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
 			testConfig,
 			[]byte(`{platform: {paths: [""]}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"duplicate path",
 			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform", "payload.platform"]}}`),
 			"platform",
 			"P",
-		}, {
+		},
+		{
 			"non-empty and empty paths",
 			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform", ""]}}`),
 			"platform",
 			"P",
-		}, {
+		},
+		{
 			"empty path",
 			[]byte(`{"event":"app_start","payload":{"platform":""}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform"]}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"broken json",
 			[]byte(`{"event":"app_start","payl`),
 			testConfig,
 			[]byte(`{platform: {paths: []}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"duplicates",
 			[]byte(`{"event":"app_start","payload":{"platform":"A","platform":"B"}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform"]}}`),
 			"platform",
 			"A",
-		}, {
+		},
+		{
 			"empty field",
 			[]byte(`{"event":"app_start","payload":{"platform":""}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform"]}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"null value",
 			[]byte(`{"event":"app_start","payload":{"platform": null}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform"]}}`),
 			"platform",
 			"",
-		}, {
+		},
+		{
 			"numeric value",
 			[]byte(`{"event":"app_start","payload":{"platform": 747}}`),
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform"]}}`),
 			"platform",
 			"747",
-		}, {
+		},
+		{
 			"value is not in while list",
 			[]byte(`{"event":"app_start","payload":{"platform": "Z"}}`),
 			testConfig,
