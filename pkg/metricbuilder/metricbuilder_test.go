@@ -414,23 +414,16 @@ gpr_first:
 		Init(Props{Metrics: mConfigs}, promReg)
 		//pathConfigs is a global var that gets filled in Init()
 		updateMetric(appendTopicToMessage(test.Message, topic), topic)
-		metricFamily, err := promReg.Gather()
-		assert.Nilf(t, err, "test #%d (%s). Could not gather metrics: %v", testIndex, test.Name, err)
-		foundValue := float64(-1)
-		foundLabels := map[string]string{}
-		for _, mf := range metricFamily {
-			if *mf.Name == metricName {
-				for _, m := range mf.Metric {
-					assert.Equal(t, float64(-1), foundValue, "Should not find second value")
-					foundValue = *m.Counter.Value
-					for _, l := range m.Label {
-						foundLabels[*l.Name] = *l.Value
-					}
-				}
-			}
+		foundMetrics := HelperFetchPromCounters(t, promReg)
+		if len(test.Labels) == 0 && test.Value == -1 {
+			assert.Equalf(t, 0, len(foundMetrics), "Should not find any metrics")
+		} else {
+			metric := foundMetrics[0]
+			assert.Equal(t, 1, len(foundMetrics), "Should find single metric")
+			assert.Equalf(t, test.Labels, metric.Labels, "test #%d (%s): label set does not match", testIndex, test.Name)
+			assert.Equalf(t, test.Value, metric.Value, "test #%d (%s): label value does not match", testIndex, test.Name)
 		}
-		assert.Equalf(t, test.Labels, foundLabels, "test #%d (%s): label set does not match", testIndex, test.Name)
-		assert.Equalf(t, test.Value, foundValue, "test #%d (%s): label value does not match", testIndex, test.Name)
+
 	}
 }
 
@@ -457,6 +450,30 @@ func BenchmarkUpdateMetric(b *testing.B) {
 		updateMetric(msg, topic)
 	}
 	b.StopTimer()
+}
+
+type PromMetric struct {
+	Name   string
+	Labels map[string]string
+	Value  float64
+}
+
+func HelperFetchPromCounters(t *testing.T, reg *prometheus.Registry) []PromMetric {
+	metricFamily, err := reg.Gather()
+	assert.Nil(t, err, "Could not gather metrics: %v", err)
+	ret := []PromMetric{}
+	for _, mf := range metricFamily {
+		for _, m := range mf.Metric {
+			metric := PromMetric{Labels: map[string]string{}}
+			metric.Name = *mf.Name
+			metric.Value = *m.Counter.Value
+			for _, l := range m.Label {
+				metric.Labels[*l.Name] = *l.Value
+			}
+			ret = append(ret, metric)
+		}
+	}
+	return ret
 }
 
 func HelperMetricsConfigFromBytes(t testing.TB, data []byte) map[string]MetricProps {
