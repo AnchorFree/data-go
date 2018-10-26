@@ -9,6 +9,7 @@ import (
 
 	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/utils"
 	"github.com/buger/jsonparser"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -17,14 +18,16 @@ type Props struct {
 	Metrics map[string]MetricProps
 }
 
+type Label struct {
+	Modify string
+	Paths  []string
+	Values []string
+}
+
 type MetricProps struct {
 	Topics []string
 	Help   string
-	Labels map[string]struct {
-		Modify string
-		Paths  []string
-		Values []string
-	}
+	Labels map[string]Label
 }
 
 var internalTime = time.Now()
@@ -79,7 +82,7 @@ func Init(config Props, promRegistry *prometheus.Registry) {
 		pc := PathConfig{DefaultValues: map[string]string{}}
 		//for j, a := range e.Labels {
 		for labelName, labelConfig := range metricConfig.Labels {
-			for _, path := range labelConfig.Paths {
+			for _, path := range utils.UniqueStringSlice(labelConfig.Paths) {
 				splitPath := strings.Split(path, ".")
 				if len(path) > 0 {
 					pc.Names = append(pc.Names, labelName)
@@ -136,6 +139,7 @@ func isCountableTopic(topic string, mConfig *MetricProps) bool {
 }
 
 func updateMetric(message []byte, topic string) {
+
 	var m metric
 	for metricName, metricConf := range metricConfigs {
 		if !isCountableTopic(topic, &metricConf) {
@@ -144,6 +148,7 @@ func updateMetric(message []byte, topic string) {
 		skip := false
 
 		tags := fetchMessageTags(message, pathConfigs[metricName])
+
 		for labelName, labelConfig := range metricConf.Labels {
 			match := false
 			if len(labelConfig.Values) > 0 {
@@ -232,11 +237,16 @@ func NewReader(lr line_reader.I, topic string) *Reader {
 	}
 }
 
-func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
+func appendTopicToMessage(line []byte, topic string) []byte {
 	const maxReplacements = 1
+	return bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+topic+`",`), maxReplacements)
+}
+
+func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
 	line, offset, err = r.reader.ReadLine()
+	const maxReplacements = 1
 	updateMetric(
-		bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+r.topic+`",`), maxReplacements),
+		appendTopicToMessage(line, r.topic),
 		r.topic,
 	)
 	return line, offset, err

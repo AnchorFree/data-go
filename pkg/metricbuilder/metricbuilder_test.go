@@ -201,58 +201,255 @@ func TestModifyValue(t *testing.T) {
 
 func TestFetchMessageTags(t *testing.T) {
 	testTable := []struct {
-		Name     string
-		Message  []byte
-		Config   []byte
-		Field    string
-		Expected string
+		Name           string
+		Message        []byte
+		Config         []byte
+		LabelsOverride []byte
+		Field          string
+		Expected       string
 	}{
 		{
 			"simple properties match",
-			[]byte(`{"event":"app_start","properties":{"af_platform":"Windows"}}`),
+			[]byte(`{"event":"app_start","properties":{"platform":"Windows"}}`),
 			testConfig,
+			//map[string]Label{"platform": Label{Paths: []string{"properties.platform", "payload.platform"}}},
+			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"Windows",
 		}, {
 			"simple payload match",
-			[]byte(`{ "event":"app_start","payload":{"af_platform":"Android"}}`),
+			[]byte(`{ "event":"app_start","payload":{"platform":"Android"}}`),
 			testConfig,
+			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"Android",
 		}, {
 			"platform match with two possible variants",
-			[]byte(`{"event":"app_start","payload":{"af_platform":"Android"},"properties":{"af_platform":"Windows"}}`),
+			[]byte(`{"event":"app_start","payload":{"platform":"Android"},"properties":{"platform":"Windows"}}`),
 			testConfig,
+			//map[string]Label{},
+			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"Windows", //gets overwritten by the latest match
 		}, {
 			"missing af_platform field",
 			[]byte(`{"event":"app_start"}`),
 			testConfig,
+			[]byte(`{platform: {paths: ["properties.platform", "payload.platform"]}}`),
 			"platform",
 			"",
+		}, {
+			"no path",
+			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: []}}`),
+			"platform",
+			"",
+		}, {
+			"empty path",
+			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: [""]}}`),
+			"platform",
+			"",
+		}, {
+			"duplicate path",
+			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform", "payload.platform"]}}`),
+			"platform",
+			"P",
+		}, {
+			"non-empty and empty paths",
+			[]byte(`{"event":"app_start","payload":{"platform":"P"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform", ""]}}`),
+			"platform",
+			"P",
+		}, {
+			"empty path",
+			[]byte(`{"event":"app_start","payload":{"platform":""}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"",
+		}, {
+			"broken json",
+			[]byte(`{"event":"app_start","payl`),
+			testConfig,
+			[]byte(`{platform: {paths: []}}`),
+			"platform",
+			"",
+		}, {
+			"duplicates",
+			[]byte(`{"event":"app_start","payload":{"platform":"A","platform":"B"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"A",
+		}, {
+			"empty field",
+			[]byte(`{"event":"app_start","payload":{"platform":""}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"",
+		}, {
+			"null value",
+			[]byte(`{"event":"app_start","payload":{"platform": null}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"",
+		}, {
+			"numeric value",
+			[]byte(`{"event":"app_start","payload":{"platform": 747}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"747",
+		}, {
+			"value is not in while list",
+			[]byte(`{"event":"app_start","payload":{"platform": "Z"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"], values: ["P", "R", "S"]}}`),
+			"platform",
+			"Z",
 		},
 	}
 
 	for testIndex, test := range testTable {
 		//topic := "test"
 		metricName := "gpr_first"
-		prom := prometheus.NewRegistry()
-		mConfs := HelperMetricsConfigFromBytes(t, test.Config)
-		Init(Props{Metrics: mConfs}, prom)
-		//_, value := filterMessage(v.Message, av.Name, av.UnpackedPath, av.Values)
+		promReg := prometheus.NewRegistry()
+		mConfigs := HelperMetricsConfigFromBytes(t, test.Config)
+		if len(test.LabelsOverride) > 0 {
+			for labelName, labelOverride := range HelperLabelsConfigFromBytes(t, test.LabelsOverride) {
+				mConfigs[metricName].Labels[labelName] = labelOverride
+			}
+		}
+		Init(Props{Metrics: mConfigs}, promReg)
 		//pathConfigs is a global var that gets filled in Init()
 		tags := fetchMessageTags(test.Message, pathConfigs[metricName])
-		fmt.Printf("tags: %+v\n", tags)
 		assert.Equalf(t, test.Expected, tags[test.Field], `test #%d: %s`, testIndex, test.Name)
 	}
 }
 
-func BenchmarkPutIncomingMessage(b *testing.B) {
-	prom := prometheus.NewRegistry()
-	mConfs := HelperMetricsConfigFromBytes(b, testConfig)
+func TestUpdateMetric(t *testing.T) {
 	topic := "test"
-	Init(Props{Metrics: mConfs}, prom)
+	var config = []byte(fmt.Sprintf(`
+gpr_first:
+  help: "gpr_first help"
+  topics:
+   - "%s"
+  labels:
+    topic:
+      paths:
+      - "topic"
+      values: []
+    platform:
+      paths:
+      - "payload.platform"
+      values: []
+    event:
+      paths:
+      - "event"
+      values:
+      - A
+      - B
+      - C
+`, topic))
+
+	testTable := []struct {
+		Name               string
+		Message            []byte
+		Config             []byte
+		LabelsConfOverride []byte
+		Labels             map[string]string
+		Value              float64
+	}{
+		{
+			"topic + event + platform",
+			[]byte(`{"event":"A","payload":{"platform": "P"}}`),
+			config,
+			[]byte(``),
+			map[string]string{"topic": topic, "event": "A", "platform": "P"},
+			float64(1),
+		},
+		{
+			"event out of listed value set",
+			[]byte(`{"event":"Z","payload":{"platform": "P"}}`),
+			config,
+			[]byte(``),
+			map[string]string{},
+			float64(-1),
+		},
+		{
+			"missing field",
+			[]byte(`{"event":"A","payload":{"somefield": "somevalue"}}`),
+			config,
+			[]byte(``),
+			map[string]string{"topic": topic, "event": "A", "platform": ""},
+			float64(1),
+		},
+		{
+			"empty field",
+			[]byte(`{"event":"A","payload":{"platform": ""}}`),
+			config,
+			[]byte(``),
+			map[string]string{"topic": topic, "event": "A", "platform": ""},
+			float64(1),
+		},
+	}
+
+	for testIndex, test := range testTable {
+		metricName := "gpr_first"
+		promReg := prometheus.NewRegistry()
+		mConfigs := HelperMetricsConfigFromBytes(t, test.Config)
+		if len(test.LabelsConfOverride) > 0 {
+			for labelName, labelOverride := range HelperLabelsConfigFromBytes(t, test.LabelsConfOverride) {
+				mConfigs[metricName].Labels[labelName] = labelOverride
+			}
+		}
+		Init(Props{Metrics: mConfigs}, promReg)
+		//pathConfigs is a global var that gets filled in Init()
+		updateMetric(appendTopicToMessage(test.Message, topic), topic)
+		metricFamily, err := promReg.Gather()
+		assert.Nilf(t, err, "test #%d (%s). Could not gather metrics: %v", testIndex, test.Name, err)
+		foundValue := float64(-1)
+		foundLabels := map[string]string{}
+		for _, mf := range metricFamily {
+			if *mf.Name == metricName {
+				for _, m := range mf.Metric {
+					assert.Equal(t, float64(-1), foundValue, "Should not find second value")
+					foundValue = *m.Counter.Value
+					for _, l := range m.Label {
+						foundLabels[*l.Name] = *l.Value
+					}
+				}
+			}
+		}
+		assert.Equalf(t, test.Labels, foundLabels, "test #%d (%s): label set does not match", testIndex, test.Name)
+		assert.Equalf(t, test.Value, foundValue, "test #%d (%s): label value does not match", testIndex, test.Name)
+	}
+}
+
+func TestIsCountableTopic(t *testing.T) {
+	metricName := "gpr_first"
+	promReg := prometheus.NewRegistry()
+	mConfigs := HelperMetricsConfigFromBytes(t, testConfig)
+	mConfig := mConfigs[metricName]
+	Init(Props{Metrics: mConfigs}, promReg)
+	assert.False(t, isCountableTopic("somedummytopic", &mConfig), "dummy topic should not be allowed")
+	assert.False(t, isCountableTopic("", &mConfig), "empty topic should not be allowed")
+	assert.True(t, isCountableTopic("test", &mConfig), "test topic should be allowed")
+}
+
+func BenchmarkUpdateMetric(b *testing.B) {
+	promReg := prometheus.NewRegistry()
+	mConfigs := HelperMetricsConfigFromBytes(b, testConfig)
+	topic := "test"
+	Init(Props{Metrics: mConfigs}, promReg)
 
 	b.ResetTimer()
 	msg := HelperFlattenMessage(b, testString)
@@ -260,14 +457,6 @@ func BenchmarkPutIncomingMessage(b *testing.B) {
 		updateMetric(msg, topic)
 	}
 	b.StopTimer()
-
-	metrics, err := prom.Gather()
-	if err != nil {
-		fmt.Printf("err: %v\n", err)
-	}
-	for _, m := range metrics {
-		fmt.Printf("metric: %s\n", m.String())
-	}
 }
 
 func HelperMetricsConfigFromBytes(t testing.TB, data []byte) map[string]MetricProps {
@@ -276,6 +465,14 @@ func HelperMetricsConfigFromBytes(t testing.TB, data []byte) map[string]MetricPr
 		t.Fatalf("error: %v", err)
 	}
 	return metricConfigs
+}
+
+func HelperLabelsConfigFromBytes(t testing.TB, data []byte) map[string]Label {
+	var labelsConfig map[string]Label
+	if err := yaml.Unmarshal(data, &labelsConfig); err != nil {
+		t.Fatalf("error: %v", err)
+	}
+	return labelsConfig
 }
 
 func HelperFlattenMessage(t testing.TB, m []byte) []byte {
