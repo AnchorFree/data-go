@@ -2,6 +2,7 @@ package metricbuilder
 
 import (
 	"bytes"
+	//"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -44,10 +45,10 @@ type MessagePayload struct {
 }
 
 var metricConfigs map[string]MetricProps
-var LRUTimeout = 1 * time.Minute
+var LRUInterval = 1 * time.Minute
 
 //modify to read from configuration file
-var timeBucket float64 = 5.0
+var LRUTimeBucket float64 = 300
 
 var (
 	metricsVec = make(map[string]*prometheus.CounterVec)
@@ -69,8 +70,10 @@ var pathConfigs = map[string]PathConfig{}
 
 func init() {
 	go func() {
-		internalTime = time.Now()
-		time.Sleep(1 * time.Second)
+		for {
+			internalTime = time.Now()
+			time.Sleep(1 * time.Second)
+		}
 	}()
 }
 
@@ -118,10 +121,8 @@ func Init(config Props, promRegistry *prometheus.Registry) {
 func RunLRU() {
 	go func() {
 		for {
-			for k, v := range metricsVec {
-				purgeOldMetrics(k, v)
-			}
-			time.Sleep(LRUTimeout)
+			purgeOldMetrics()
+			time.Sleep(LRUInterval)
 		}
 	}()
 }
@@ -139,8 +140,6 @@ func isCountableTopic(topic string, mConfig *MetricProps) bool {
 }
 
 func updateMetric(message []byte, topic string) {
-
-	var m metric
 	for metricName, metricConf := range metricConfigs {
 		if !isCountableTopic(topic, &metricConf) {
 			continue
@@ -164,18 +163,23 @@ func updateMetric(message []byte, topic string) {
 			}
 		}
 		if !skip && len(tags) > 0 {
-			m.Name = metricName
-			m.Tags = tags
-			m.UpdatedAt = internalTime
+			m := metric{
+				Name:      metricName,
+				Tags:      tags,
+				UpdatedAt: internalTime,
+			}
 
 			metricsVec[m.Name].With(m.Tags).Inc()
-			addMetricToLRU(&m)
+			addMetricToLRU(m)
 		}
 	}
 }
 
 func fetchMessageTags(message []byte, pc PathConfig) map[string]string {
-	tags := pc.DefaultValues
+	tags := make(map[string]string, len(pc.DefaultValues))
+	for k, v := range pc.DefaultValues {
+		tags[k] = v
+	}
 	jsonparser.EachKey(message, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
 		tags[pc.Names[idx]] = string(value)
 	}, pc.Paths...)
@@ -192,7 +196,7 @@ func modifyValue(modify *string, value string) string {
 	return value
 }
 
-func addMetricToLRU(m *metric) {
+func addMetricToLRU(m metric) {
 	tagsInline := string("")
 	// map is not sorted in Go
 	// but we need to keep order
@@ -207,21 +211,28 @@ func addMetricToLRU(m *metric) {
 	}
 
 	mutexLRU.Lock()
-	metricsLRU[m.Name+" "+tagsInline[1:]] = *m
+	mapKey := m.Name + " " + tagsInline[1:]
+	metricsLRU[mapKey] = m
 	mutexLRU.Unlock()
 }
 
-func purgeOldMetrics(metricName string, vec *prometheus.CounterVec) {
-	mutexLRU.Lock()
-	for k, v := range metricsLRU {
-		if metricName == v.Name {
-			if internalTime.Sub(v.UpdatedAt).Minutes() > timeBucket {
-				vec.Delete(v.Tags)
-				delete(metricsLRU, k)
+func purgeOldMetrics() {
+	for metricName, vec := range metricsVec {
+		mutexLRU.Lock()
+		for k, v := range metricsLRU {
+			if metricName == v.Name {
+				if internalTime.Sub(v.UpdatedAt).Seconds() > LRUTimeBucket {
+					vec.Delete(v.Tags)
+					delete(metricsLRU, k)
+				}
 			}
 		}
+		mutexLRU.Unlock()
 	}
-	mutexLRU.Unlock()
+}
+
+func ResetMetricsLRU() {
+	metricsLRU = map[string]metric{}
 }
 
 type Reader struct {

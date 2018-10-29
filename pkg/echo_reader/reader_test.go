@@ -11,7 +11,7 @@ import (
 
 func TestEchoReader(t *testing.T) {
 	raw := []byte("This is the test\nSecond line here\n")
-	lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(raw))
+	lor := line_offset_reader.NewReader(bytes.NewReader(raw))
 	pipeReader, pipeWriter := io.Pipe()
 	echoReader := NewEchoReader(lor, pipeWriter)
 	go func() {
@@ -23,7 +23,7 @@ func TestEchoReader(t *testing.T) {
 			}
 		}
 	}()
-	rawLor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(raw))
+	rawLor := line_offset_reader.NewReader(bytes.NewReader(raw))
 	buf := bytes.NewBuffer([]byte(""))
 	for {
 		line, _, err := rawLor.ReadLine()

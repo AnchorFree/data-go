@@ -3,10 +3,13 @@ package metricbuilder
 import (
 	"bytes"
 	"fmt"
+	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
+	"reflect"
 	"testing"
+	"time"
 )
 
 var testConfig = []byte(`
@@ -312,7 +315,7 @@ func TestFetchMessageTags(t *testing.T) {
 			testConfig,
 			[]byte(`{platform: {paths: ["payload.platform"]}}`),
 			"platform",
-			"",
+			"null",
 		},
 		{
 			"numeric value",
@@ -329,6 +332,14 @@ func TestFetchMessageTags(t *testing.T) {
 			[]byte(`{platform: {paths: ["payload.platform"], values: ["P", "R", "S"]}}`),
 			"platform",
 			"Z",
+		},
+		{
+			"Unicode symbols",
+			[]byte(`{"event":"app_start","payload":{"platform": "Железяка` + "\u1234" + `"}}`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"Железяка\u1234",
 		},
 	}
 
@@ -432,13 +443,147 @@ gpr_first:
 		if len(test.Labels) == 0 && test.Value == -1 {
 			assert.Equalf(t, 0, len(foundMetrics), "Should not find any metrics")
 		} else {
-			metric := foundMetrics[0]
 			assert.Equal(t, 1, len(foundMetrics), "Should find single metric")
+			metric := foundMetrics[0]
 			assert.Equalf(t, test.Labels, metric.Labels, "test #%d (%s): label set does not match", testIndex, test.Name)
 			assert.Equalf(t, test.Value, metric.Value, "test #%d (%s): label value does not match", testIndex, test.Name)
 		}
 
 	}
+}
+
+func TestReader(t *testing.T) {
+	topic := "test"
+	config := []byte(fmt.Sprintf(`
+gpr_first:
+  help: "gpr_first help"
+  topics:
+   - "%s"
+  labels:
+    topic:
+      paths:
+      - "topic"
+      values: []
+    platform:
+      paths:
+      - "payload.platform"
+      values: []
+    event:
+      paths:
+      - "event"
+      values:
+      - A
+      - B
+      - C
+`, topic))
+	data := []byte(`{"event":"A","payload":{"platform": "P1"}}
+{"event":"B","payload":{"platform": "P2"}}
+{"event":"B","payload":{"platform": "P2"}}
+{"event":"B","payload":{"platform": "P2"}}
+{"event":"C","payload":{"platform": "P3"}}
+{"event":"C","payload":{"platform": "P3"}}
+`)
+
+	expectedMetrics := []struct {
+		Value  float64
+		Labels map[string]string
+	}{
+		{float64(1), map[string]string{"topic": topic, "event": "A", "platform": "P1"}},
+		{float64(3), map[string]string{"topic": topic, "event": "B", "platform": "P2"}},
+		{float64(2), map[string]string{"topic": topic, "event": "C", "platform": "P3"}},
+	}
+	metricName := "gpr_first"
+	promReg := prometheus.NewRegistry()
+	mConfigs := HelperMetricsConfigFromBytes(t, config)
+	Init(Props{Metrics: mConfigs}, promReg)
+	lor := line_offset_reader.NewReader(bytes.NewReader(data))
+	mb := NewReader(lor, topic)
+	var err error
+	for err == nil {
+		_, _, err = mb.ReadLine()
+	}
+	foundMetrics := HelperFetchPromCounters(t, promReg)
+	for _, em := range expectedMetrics {
+		found := false
+		for _, fm := range foundMetrics {
+			if reflect.DeepEqual(em.Labels, fm.Labels) {
+				found = true
+				assert.Equal(t, metricName, fm.Name, "metric name does not match")
+				assert.Equal(t, em.Labels, fm.Labels, "label set does not match")
+				assert.Equal(t, em.Value, fm.Value, "metric value does not match")
+				break
+			}
+		}
+		assert.Truef(t, found, "Did not find expected metric: %+v", em)
+	}
+}
+
+func TestPurgeOldMetrics(t *testing.T) {
+	ResetMetricsLRU()
+	topic := "test"
+	config := []byte(fmt.Sprintf(`
+gpr_first:
+  help: "gpr_first help"
+  topics:
+   - "%s"
+  labels:
+    topic:
+      paths:
+      - "topic"
+      values: []
+    platform:
+      paths:
+      - "payload.platform"
+      values: []
+    event:
+      paths:
+      - "event"
+      values:
+      - A
+      - B
+      - C
+`, topic))
+	message1 := []byte(`{"event":"A","payload":{"platform": "P"}}`)
+	message2 := []byte(`{"event":"B","payload":{"platform": "P"}}`)
+	labels1 := map[string]string{"topic": topic, "event": "A", "platform": "P"}
+	labels2 := map[string]string{"topic": topic, "event": "B", "platform": "P"}
+	metricName := "gpr_first"
+	promReg := prometheus.NewRegistry()
+	mConfigs := HelperMetricsConfigFromBytes(t, config)
+	Init(Props{Metrics: mConfigs}, promReg)
+	LRUTimeBucket = 1 //seconds
+	batchSize := 10
+	for i := 1; i <= batchSize; i++ {
+		updateMetric(appendTopicToMessage(message1, topic), topic)
+	}
+	time.Sleep(2 * time.Second)
+	for i := 1; i <= batchSize; i++ {
+		updateMetric(appendTopicToMessage(message2, topic), topic)
+	}
+	foundMetrics := HelperFetchPromCounters(t, promReg)
+	assert.Equal(t, 2, len(foundMetrics), "Should find a metric with 2 label sets")
+	for _, metric := range foundMetrics {
+		if reflect.DeepEqual(metric.Labels, labels1) {
+			assert.Equal(t, metricName, metric.Name, "metric name does not match")
+			assert.Equal(t, labels1, metric.Labels, "label set does not match")
+			assert.Equal(t, float64(batchSize), metric.Value, "metric value does not match")
+		} else {
+			assert.Equal(t, metricName, metric.Name, "metric name does not match")
+			assert.Equal(t, labels2, metric.Labels, "label set does not match")
+			assert.Equal(t, float64(batchSize), metric.Value, "metric value does not match")
+		}
+	}
+	// has to clean up all the metrics with last update time older than LRUTimeBucket
+	purgeOldMetrics()
+	foundMetrics = HelperFetchPromCounters(t, promReg)
+	assert.Equal(t, 1, len(foundMetrics), "Should find a metric with 1 label sets")
+	metric := foundMetrics[0]
+	assert.Equalf(t, labels2, metric.Labels, "label set does not match")
+	assert.Equalf(t, float64(batchSize), metric.Value, "metric value does not match")
+	time.Sleep(2 * time.Second)
+	purgeOldMetrics()
+	foundMetrics = HelperFetchPromCounters(t, promReg)
+	assert.Equal(t, 0, len(foundMetrics), "Should not find test metric")
 }
 
 func TestIsCountableTopic(t *testing.T) {
