@@ -67,7 +67,7 @@ sieben acht gute Nacht`)
 		Url: addr,
 	}
 	cl.Init(cfg, prom)
-	lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(fullMessage))
+	lor := line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 	_, lastConfirmedOffset, _, err := cl.SendMessages(topic, lor)
 	if err != nil {
 		t.Errorf("Error sending messages: %s", err)
@@ -139,7 +139,7 @@ func TestJsonFilter(t *testing.T) {
 	}
 	cl.SetValidateJsonTopics(validateJsonTopics)
 	for _, test := range jsonTests {
-		lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(test.message))
+		lor := line_offset_reader.NewReader(bytes.NewReader(test.message))
 		_, _, filteredCnt, err := cl.SendMessages(topic, lor)
 		if err != nil {
 			t.Errorf("Error sending messages: %s", err)

@@ -38,7 +38,7 @@ func TestHttpRequests(t *testing.T) {
 		Url: ts.URL,
 	}
 	cl.Init(cfg, prom)
-	lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(message))
+	lor := line_offset_reader.NewReader(bytes.NewReader(message))
 	//confirmedCnt, lastConfirmedOffset, err := cl.SendMessages(topic, lor)
 	_, _, _, err := cl.SendMessages(topic, lor)
 	if err != nil {
@@ -104,7 +104,7 @@ func TestJsonFilter(t *testing.T) {
 	}
 	cl.SetValidateJsonTopics(validateJsonTopics)
 	for _, test := range jsonTests {
-		lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(test.message))
+		lor := line_offset_reader.NewReader(bytes.NewReader(test.message))
 		_, _, filteredCnt, err := cl.SendMessages(topic, lor)
 		if err != nil {
 			t.Errorf("Error sending messages: %s", err)

@@ -42,7 +42,7 @@ func TestKafkaProxyHttpRequests(t *testing.T) {
 		Url: ts.URL,
 	}
 	proxy := NewKafkaProxy(cfg, prom)
-	lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(message))
+	lor := line_offset_reader.NewReader(bytes.NewReader(message))
 	_, _, err := proxy.SendMessages(topic, lor)
 	if err != nil {
 		t.Errorf("KafkaProxy returned an error: %s", err)
@@ -86,7 +86,7 @@ sieben acht gute Nacht`)
 	}
 	proxy := NewKafkaProxy(cfg, prom)
 
-	lor := line_offset_reader.NewLineOffsetReader(bytes.NewReader(fullMessage))
+	lor := line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 	_, _, err = proxy.SendMessages(topic, lor)
 	if err != nil {
 		t.Errorf("KafkaProxy returned an error: %s", err)
@@ -95,7 +95,7 @@ sieben acht gute Nacht`)
 	grpcSrv.Stop()
 	assert.True(t, proxy.GetBreaker().Ready(), "Circuit breaker should be close (ready)")
 	for i := 1; i <= int(proxy.Config.CircuitBreakerMaxFails); i++ {
-		lor = line_offset_reader.NewLineOffsetReader(bytes.NewReader(fullMessage))
+		lor = line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 		_, _, err = proxy.SendMessages(topic, lor)
 		if err == nil {
 			t.Error("KafkaProxy is supposed to return error as GRPC server is down")
@@ -113,14 +113,14 @@ sieben acht gute Nacht`)
 		er := grpcSrv.Serve(lis)
 		t.Error(er)
 	}()
-	lor = line_offset_reader.NewLineOffsetReader(bytes.NewReader(fullMessage))
+	lor = line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 	_, _, err = proxy.SendMessages(topic, lor)
 	fmt.Println(err)
 	if err == nil {
 		t.Error("KafkaProxy is supposed to return error circuitbreaker is open (not ready)")
 	}
 	time.Sleep(proxy.GetBreaker().BackOff.NextBackOff() + 1*time.Second)
-	lor = line_offset_reader.NewLineOffsetReader(bytes.NewReader(fullMessage))
+	lor = line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 	_, _, err = proxy.SendMessages(topic, lor)
 	if err != nil {
 		t.Errorf("KafkaProxy returned an error: %s", err)

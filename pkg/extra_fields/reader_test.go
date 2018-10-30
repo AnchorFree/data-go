@@ -59,7 +59,7 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 		"server_ts": serverTs,
 		"client_ts": clientTs,
 	}
-	lineReader := lor.NewLineOffsetReader(bytes.NewReader(raw))
+	lineReader := lor.NewReader(bytes.NewReader(raw))
 	efr := NewExtraFieldsReader(lineReader, req).With(extraFields)
 
 	for {
@@ -93,7 +93,7 @@ func TestExtraFieldsFromIspDb(t *testing.T) {
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
 	testIP := "1.128.0.0"
 	req.RemoteAddr = testIP
-	lineReader := lor.NewLineOffsetReader(bytes.NewReader(raw))
+	lineReader := lor.NewReader(bytes.NewReader(raw))
 	efr := NewExtraFieldsReader(lineReader, req)
 	for {
 		line, _, readerErr := efr.ReadLine()
@@ -121,7 +121,7 @@ func TestExtraFieldsFromCityDb(t *testing.T) {
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
 	testIP := "81.2.69.160"
 	req.RemoteAddr = testIP
-	lineReader := lor.NewLineOffsetReader(bytes.NewReader(raw))
+	lineReader := lor.NewReader(bytes.NewReader(raw))
 	efr := NewExtraFieldsReader(lineReader, req)
 	for {
 		line, _, readerErr := efr.ReadLine()

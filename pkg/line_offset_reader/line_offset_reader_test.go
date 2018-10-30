@@ -88,7 +88,7 @@ var lineOffsetTests = []lineOffsetTest{
 func TestLineSplittingAndOffsets(t *testing.T) {
 	for test_index, test := range lineOffsetTests {
 		inp := strings.NewReader(test.raw)
-		lor := NewLineOffsetReader(inp)
+		lor := NewReader(inp)
 		n := 0
 		offsets := testutils.GetLineOffsets(t, test.raw)
 		lengths := testutils.GetLineLengths(t, test.raw)
@@ -115,7 +115,7 @@ func TestInterruptedLineReader(t *testing.T) {
 		)
 		stringReader := strings.NewReader(test.raw)
 		inp := eaor.NewErrorAtOffsetReader(stringReader, errorAtOffset)
-		lor := NewLineOffsetReader(inp)
+		lor := NewReader(inp)
 		n := 0
 		for {
 			//line, offset, err := lor.ReadLine()
@@ -158,7 +158,7 @@ var jsonMessageTests = []jsonMessageTest{
 func TestReadJsonMessageAndOffsets(t *testing.T) {
 	for ind, test := range jsonMessageTests {
 		inp := strings.NewReader(test.raw)
-		lor := NewLineOffsetReader(inp)
+		lor := NewReader(inp)
 		lor.LookForJsonDelimiters = true
 		n := 0
 		for {
@@ -178,7 +178,7 @@ func TestReadJsonMessageAndOffsets(t *testing.T) {
 func TestReadJsonMessageTrimmedAndOffsets(t *testing.T) {
 	for ind, test := range jsonMessageTests {
 		inp := strings.NewReader(test.raw)
-		lor := NewLineOffsetReader(inp)
+		lor := NewReader(inp)
 		lor.LookForJsonDelimiters = true
 		lor.TrimMessages = true
 		n := 0

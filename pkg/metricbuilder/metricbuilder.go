@@ -2,7 +2,7 @@ package metricbuilder
 
 import (
 	"bytes"
-	"fmt"
+	//"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -10,15 +10,28 @@ import (
 
 	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/anchorfree/gpr-edge/pkg/confreader"
+	"github.com/anchorfree/data-go/pkg/utils"
 	"github.com/buger/jsonparser"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const (
-	metricsChannelBufferLength = uint8(50)
-	incomeChannelBufferLength  = uint8(50)
-)
+type Props struct {
+	Metrics map[string]MetricProps
+}
+
+type Label struct {
+	Modify string
+	Paths  []string
+	Values []string
+}
+
+type MetricProps struct {
+	Topics []string
+	Help   string
+	Labels map[string]Label
+}
+
+var internalTime = time.Now()
 
 type metric struct {
 	Name      string
@@ -31,106 +44,93 @@ type MessagePayload struct {
 	Topic string
 }
 
-var conf *confreader.Configuration
+var metricConfigs map[string]MetricProps
+var LRUInterval = 1 * time.Minute
 
 //modify to read from configuration file
-var timeBucket float64 = 5.0
-var numParsers int = 5
-var numReaders int = 2
+var LRUTimeBucket float64 = 300
 
 var (
-	incomeMessageChannel = make(chan MessagePayload, incomeChannelBufferLength)
-	metricsChannel       = make(chan metric, metricsChannelBufferLength)
-	metricsVec           = make(map[string]*prometheus.CounterVec)
-	metricsLRU           = map[string]metric{}
-)
-var (
-	incomeChannelCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "gpr_exporter_income_message_queue",
-		Help: "Current capacity of the incoming message queue.",
-	})
-	metricsChannelCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "gpr_exporter_parsed_metrics_queue",
-		Help: "Current capacity of the parsed metrics queue.",
-	})
+	metricsVec = make(map[string]*prometheus.CounterVec)
+	metricsLRU = map[string]metric{}
 )
 
 var (
-	mutex = &sync.Mutex{}
-	prom  *prometheus.Registry
+	mutexLRU = &sync.Mutex{}
+	prom     *prometheus.Registry
 )
 
-func Init(cfg *confreader.Configuration, promRegistry *prometheus.Registry) {
+type PathConfig struct {
+	Names         []string
+	Paths         [][]string
+	DefaultValues map[string]string
+}
+
+var pathConfigs = map[string]PathConfig{}
+
+func init() {
+	go func() {
+		for {
+			internalTime = time.Now()
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
+func Init(config Props, promRegistry *prometheus.Registry) {
 	prom = promRegistry
-	conf = cfg
-	for _, v := range cfg.Exporters {
-		aggregationsArray := func() []string {
+	metricConfigs = config.Metrics
+	//for i, e := range metricConfigs {
+	for metricName, metricConfig := range metricConfigs {
+		pc := PathConfig{DefaultValues: map[string]string{}}
+		//for j, a := range e.Labels {
+		for labelName, labelConfig := range metricConfig.Labels {
+			for _, path := range utils.UniqueStringSlice(labelConfig.Paths) {
+				splitPath := strings.Split(path, ".")
+				if len(path) > 0 {
+					pc.Names = append(pc.Names, labelName)
+					pc.DefaultValues[labelName] = ""
+					pc.Paths = append(pc.Paths, splitPath)
+				}
+			}
+		}
+		if len(pc.Names) != len(pc.Paths) {
+			logger.Get().Fatal("Error initializing merged paths config")
+		}
+		pathConfigs[metricName] = pc
+	}
+	for metricName, metricConfig := range metricConfigs {
+		labelsArray := func() []string {
 			var tmp []string
-			for _, val := range v.Aggregations {
-				tmp = append(tmp, val.Name)
+			for labelName, _ := range metricConfig.Labels {
+				tmp = append(tmp, labelName)
 			}
 			return tmp
 		}
-		metricsVec[v.Metric.Name] = prometheus.NewCounterVec(
+		metricsVec[metricName] = prometheus.NewCounterVec(
 			prometheus.CounterOpts{
-				Name: v.Metric.Name,
-				Help: v.Metric.Help,
+				Name: metricName,
+				Help: metricConfig.Help,
 			},
-			aggregationsArray(),
+			labelsArray(),
 		)
-		prom.MustRegister(metricsVec[v.Metric.Name])
-	}
-	prom.MustRegister(incomeChannelCapacity)
-	prom.MustRegister(metricsChannelCapacity)
-
-}
-
-func PutIncomeMessage(mp MessagePayload) {
-	incomeMessageChannel <- mp
-}
-
-func ParseIncomeMessageBody() {
-	for m := range incomeMessageChannel {
-		createMetric(&m.Msg, &m.Topic)
+		prom.MustRegister(metricsVec[metricName])
 	}
 }
 
-func Run() {
-	for i := 0; i < numReaders; i++ {
-		go func() {
-			for {
-				cm := <-metricsChannel
-				metricsVec[cm.Name].With(cm.Tags).Inc()
-				addMetricToLRU(&cm)
-			}
-		}()
-	}
-	for i := 0; i < numParsers; i++ {
-		go func() {
-			ParseIncomeMessageBody()
-		}()
-	}
+func RunLRU() {
 	go func() {
 		for {
-			for k, v := range metricsVec {
-				purgeOldMetrics(k, v)
-			}
-			time.Sleep(time.Duration(5000 * time.Millisecond))
-		}
-	}()
-	go func() {
-		for {
-			incomeChannelCapacity.Set(float64(len(incomeMessageChannel)))
-			metricsChannelCapacity.Set(float64(len(metricsChannel)))
-			time.Sleep(time.Duration(50 * time.Millisecond))
+			purgeOldMetrics()
+			time.Sleep(LRUInterval)
 		}
 	}()
 }
 
-func isCountableTopic(topic *string, exp *confreader.Exporter) bool {
-	if len(exp.Topics) > 0 {
-		for i := range exp.Topics {
-			if *topic == exp.Topics[i] {
+func isCountableTopic(topic string, mConfig *MetricProps) bool {
+	if len(mConfig.Topics) > 0 {
+		for i := range mConfig.Topics {
+			if topic == mConfig.Topics[i] {
 				return true
 			}
 		}
@@ -139,43 +139,51 @@ func isCountableTopic(topic *string, exp *confreader.Exporter) bool {
 	return false
 }
 
-func createMetric(message *[]byte, topic *string) {
-
-	var m metric
-
-	for _, v := range conf.Exporters {
-
-		if !isCountableTopic(topic, &v) {
+func updateMetric(message []byte, topic string) {
+	for metricName, metricConf := range metricConfigs {
+		if !isCountableTopic(topic, &metricConf) {
 			continue
 		}
-
 		skip := false
 
-		tags := make(map[string]string)
+		tags := fetchMessageTags(message, pathConfigs[metricName])
 
-		for _, av := range v.Aggregations {
-
-			fieldName, fieldValue := filterMessage(message, av.Name, av.UnpackedPath, av.Values)
-
-			if fieldName == "" {
-				skip = true
+		for labelName, labelConfig := range metricConf.Labels {
+			match := false
+			if len(labelConfig.Values) > 0 {
+				for _, v := range labelConfig.Values {
+					if v == tags[labelName] {
+						match = true
+					}
+				}
+				if !match {
+					skip = true
+					break
+				}
 			}
-			fieldValue = modifyValue(&av.Modify, fieldValue)
-			tags[fieldName] = fieldValue
 		}
+		if !skip && len(tags) > 0 {
+			m := metric{
+				Name:      metricName,
+				Tags:      tags,
+				UpdatedAt: internalTime,
+			}
 
-		if skip {
-			continue
-		}
-
-		if len(tags) > 0 {
-			m.Name = v.Metric.Name
-			m.Tags = tags
-			m.UpdatedAt = time.Now()
-
-			metricsChannel <- m
+			metricsVec[m.Name].With(m.Tags).Inc()
+			addMetricToLRU(m)
 		}
 	}
+}
+
+func fetchMessageTags(message []byte, pc PathConfig) map[string]string {
+	tags := make(map[string]string, len(pc.DefaultValues))
+	for k, v := range pc.DefaultValues {
+		tags[k] = v
+	}
+	jsonparser.EachKey(message, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
+		tags[pc.Names[idx]] = string(value)
+	}, pc.Paths...)
+	return tags
 }
 
 func modifyValue(modify *string, value string) string {
@@ -188,42 +196,8 @@ func modifyValue(modify *string, value string) string {
 	return value
 }
 
-func filterMessage(message *[]byte, fieldName string, paths [][]string, values []string) (string, string) {
-
-	var val []byte
-	var err error
-
-	for _, path := range paths {
-		val, _, _, err = jsonparser.Get(*message, path...)
-		if err != nil && err.Error() == "Key path not found" {
-			continue
-		} else if err != nil {
-			logger.Get().Warnf("error: %v", err)
-		}
-
-		if len(val) > 0 {
-			break
-		}
-	}
-
-	if len(values) == 0 {
-		if len(val) == 0 {
-			return fieldName, ""
-		}
-		return fieldName, string(val)
-	}
-
-	for _, v := range values {
-		if string(val) == v {
-			return fieldName, v
-		}
-	}
-	return "", ""
-}
-
-func addMetricToLRU(m *metric) {
+func addMetricToLRU(m metric) {
 	tagsInline := string("")
-
 	// map is not sorted in Go
 	// but we need to keep order
 	var keys []string
@@ -233,47 +207,58 @@ func addMetricToLRU(m *metric) {
 	sort.Strings(keys)
 
 	for _, v := range keys {
-		tagsInline += fmt.Sprintf(" %s", m.Tags[v])
+		tagsInline += " " + m.Tags[v]
 	}
 
-	mutex.Lock()
-	metricsLRU[m.Name+" "+tagsInline[1:]] = *m
-	mutex.Unlock()
+	mutexLRU.Lock()
+	mapKey := m.Name + " " + tagsInline[1:]
+	metricsLRU[mapKey] = m
+	mutexLRU.Unlock()
 }
 
-func purgeOldMetrics(metricName string, vec *prometheus.CounterVec) {
-
-	timeNow := time.Now()
-	mutex.Lock()
-	for k, v := range metricsLRU {
-		if metricName == v.Name {
-			if timeNow.Sub(v.UpdatedAt).Minutes() > timeBucket {
-				vec.Delete(v.Tags)
-				delete(metricsLRU, k)
+func purgeOldMetrics() {
+	for metricName, vec := range metricsVec {
+		mutexLRU.Lock()
+		for k, v := range metricsLRU {
+			if metricName == v.Name {
+				if internalTime.Sub(v.UpdatedAt).Seconds() > LRUTimeBucket {
+					vec.Delete(v.Tags)
+					delete(metricsLRU, k)
+				}
 			}
 		}
+		mutexLRU.Unlock()
 	}
-	mutex.Unlock()
 }
 
-type MetricBuilderReader struct {
+func ResetMetricsLRU() {
+	metricsLRU = map[string]metric{}
+}
+
+type Reader struct {
 	line_reader.I
 	reader line_reader.I
 	topic  string
 }
 
-func NewMetricBuilderReader(lr line_reader.I, topic string) *MetricBuilderReader {
-	return &MetricBuilderReader{
+func NewReader(lr line_reader.I, topic string) *Reader {
+	return &Reader{
 		reader: lr,
 		topic:  topic,
 	}
 }
 
-func (r *MetricBuilderReader) ReadLine() (line []byte, offset uint64, err error) {
+func appendTopicToMessage(line []byte, topic string) []byte {
+	const maxReplacements = 1
+	return bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+topic+`",`), maxReplacements)
+}
+
+func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
 	line, offset, err = r.reader.ReadLine()
-	PutIncomeMessage(MessagePayload{
-		Msg:   bytes.Replace(line, []byte("}"), []byte(", \"topic\":\""+r.topic+"\"}"), bytes.LastIndex(line, []byte("}"))),
-		Topic: r.topic,
-	})
+	const maxReplacements = 1
+	updateMetric(
+		appendTopicToMessage(line, r.topic),
+		r.topic,
+	)
 	return line, offset, err
 }

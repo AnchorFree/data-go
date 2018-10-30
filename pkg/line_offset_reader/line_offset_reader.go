@@ -18,7 +18,7 @@ type LineOffsetReader struct {
 	TrimMessages          bool
 }
 
-func NewLineOffsetReader(inp io.Reader) (r *LineOffsetReader) {
+func NewReader(inp io.Reader) (r *LineOffsetReader) {
 	return &LineOffsetReader{
 		nextOffset:            0,
 		bufReader:             bufio.NewReader(inp),

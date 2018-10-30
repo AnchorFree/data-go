@@ -91,7 +91,7 @@ func Test_MaskIPs(t *testing.T) {
 			"client_ts": 1521800918976
 		}`)
 	geoSet := geo.NewGeo()
-	geoSet.LoadFromBytes([]byte("74.115.4.69 af;"))
+	geoSet.FromBytes([]byte("74.115.4.69 af;"))
 	reader := &Reader{
 		geoSet: geoSet,
 	}
