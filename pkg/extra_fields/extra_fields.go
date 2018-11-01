@@ -21,6 +21,7 @@ type ExtraFields struct {
 	FromASDesc    string `json:"from_as_desc,omitempty"`
 	FromISP       string `json:"from_isp,omitempty"`
 	FromOrgName   string `json:"from_org_name,omitempty"`
+	Region        string `json:"from_region,omitempty"`
 }
 
 func (f *ExtraFields) GeoOrigin(req *http.Request) {
@@ -95,6 +96,7 @@ func (f *ExtraFields) countryName(req *http.Request, ip net.IP) error {
 
 func (f *ExtraFields) cityName(req *http.Request, ip net.IP) error {
 	afCity := GetMatchingHeader(req.Header, "x_af_c_city")
+	afRegion := GetMatchingHeader(req.Header, "x_af_c_region")
 	if afCity == "" && ip != nil {
 		cityMux.RLock()
 		record, err := cityDB.City(ip)
@@ -104,6 +106,9 @@ func (f *ExtraFields) cityName(req *http.Request, ip net.IP) error {
 			return err
 		}
 		f.City = record.City.Names["en"]
+		if afRegion == "" && len(record.Subdivisions) > 0 {
+			afRegion = record.Subdivisions[0].IsoCode
+		}
 		if f.City != "" {
 			f.CitySource = "geoip"
 		}
@@ -111,6 +116,7 @@ func (f *ExtraFields) cityName(req *http.Request, ip net.IP) error {
 		f.City = afCity
 		f.CitySource = "x_af_c_city"
 	}
+	f.Region = afRegion
 	return nil
 }
 
