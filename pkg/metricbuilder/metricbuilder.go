@@ -82,9 +82,11 @@ func Init(config Props, promRegistry *prometheus.Registry) {
 	metricConfigs = config.Metrics
 	//for i, e := range metricConfigs {
 	for metricName, metricConfig := range metricConfigs {
+		logger.Get().Infof("metricbuilder: loading config for metric %s", metricName)
 		pc := PathConfig{DefaultValues: map[string]string{}}
 		//for j, a := range e.Labels {
 		for labelName, labelConfig := range metricConfig.Labels {
+			logger.Get().Infof("metricbuilder: %s - loading config for label %s", metricName, labelName)
 			for _, path := range utils.UniqueStringSlice(labelConfig.Paths) {
 				splitPath := strings.Split(path, ".")
 				if len(path) > 0 {
