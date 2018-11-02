@@ -94,7 +94,7 @@ sieben acht gute Nacht`)
 	//Stop GRPC server to test CircuitBreaker
 	grpcSrv.Stop()
 	assert.True(t, proxy.GetBreaker().Ready(), "Circuit breaker should be close (ready)")
-	for i := 1; i <= int(proxy.Config.CircuitBreakerMaxFails); i++ {
+	for i := 1; i <= int(proxy.Config.CircuitBreakerMaxFails+1); i++ {
 		lor = line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 		_, _, err = proxy.SendMessages(topic, lor)
 		if err == nil {
