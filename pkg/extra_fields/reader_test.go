@@ -18,6 +18,7 @@ type EF struct {
 	FromAsn     string `json:"from_asn"`
 	FromCity    string `json:"from_city"`
 	FromCountry string `json:"from_country"`
+	FromRegion  string `json:"from_region"`
 	FromIsp     string `json:"from_isp"`
 	FromOrgName string `json:"from_org_name"`
 	Host        string `json:"host"`
@@ -32,6 +33,7 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 	testIP := "1.128.0.0"
 	fromCountry := "UA"
 	fromCity := "Kiev"
+	fromRegion := "Berdichevsky"
 	fromAsn := "54500"
 	fromAsDesc := "AS54500"
 	fromIsp := "AnchorFree"
@@ -49,6 +51,7 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 	req.Header.Set("X-Amz-Cf-Id", fmt.Sprintf("%d", cloudFront))
 	req.Header.Set("x_af_c_country", fromCountry)
 	req.Header.Set("x_af_c_city", fromCity)
+	req.Header.Set("x_af_c_region", fromRegion)
 	req.Header.Set("x_af_asn", fromAsn)
 	req.Header.Set("x_af_asdescription", fromAsDesc)
 	req.Header.Set("x_af_ispname", fromIsp)
@@ -72,6 +75,7 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 		assert.Equal(t, fromAsDesc, rec.FromAsDesc, "from_as_desc field is not correct")
 		assert.Equal(t, fromAsn, rec.FromAsn, "from_asn field is not correct")
 		assert.Equal(t, fromCity, rec.FromCity, "from_city field is not correct")
+		assert.Equal(t, fromRegion, rec.FromRegion, "from_region field is not correct")
 		assert.Equal(t, fromCountry, rec.FromCountry, "from_country field is not correct")
 		assert.Equal(t, fromIsp, rec.FromIsp, "from_isp field is not correct")
 		assert.Equal(t, fromOrgName, rec.FromOrgName, "from_org_name field is not correct")
@@ -129,6 +133,7 @@ func TestExtraFieldsFromCityDb(t *testing.T) {
 		err := json.Unmarshal(line, &rec)
 		assert.Nilf(t, err, "Could not Unmarshal json: %v", err)
 		assert.Equal(t, "London", rec.FromCity, "from_city field is not correct")
+		assert.Equal(t, "ENG", rec.FromRegion, "from_region field is not correct")
 		assert.Equal(t, "GB", rec.FromCountry, "from_country field is not correct")
 
 		if readerErr != nil {
