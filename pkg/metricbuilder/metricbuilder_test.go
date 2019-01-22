@@ -341,6 +341,14 @@ func TestFetchMessageTags(t *testing.T) {
 			"platform",
 			"Железяка\u1234",
 		},
+		{
+			"malformed json with negative level",
+			[]byte(`}}}[`),
+			testConfig,
+			[]byte(`{platform: {paths: ["payload.platform"]}}`),
+			"platform",
+			"",
+		},
 	}
 
 	for testIndex, test := range testTable {

@@ -2,7 +2,6 @@ package metricbuilder
 
 import (
 	"bytes"
-	//"fmt"
 	"sort"
 	"strings"
 	"sync"
@@ -183,7 +182,9 @@ func fetchMessageTags(message []byte, pc PathConfig) map[string]string {
 		tags[k] = v
 	}
 	jsonparser.EachKey(message, func(idx int, value []byte, vt jsonparser.ValueType, err error) {
-		tags[pc.Names[idx]] = string(value)
+		if idx >= 0 && err == nil {
+			tags[pc.Names[idx]] = string(value)
+		}
 	}, pc.Paths...)
 	return tags
 }
