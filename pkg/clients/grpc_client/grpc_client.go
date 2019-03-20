@@ -10,11 +10,11 @@ import (
 	context "golang.org/x/net/context"
 	grpc "google.golang.org/grpc"
 	"io"
+	"strings"
 )
 
 type Props struct {
 	client.Props
-	Url                 string
 	GrpcEnableMetrics   bool `yaml:"enable_metrics"`
 	GrpcEnableHistogram bool `yaml:"enable_histogram"`
 }
@@ -23,22 +23,23 @@ type Client struct {
 	client.T
 	client pb.KafkaAmbassadorClient
 	Config Props
+	Url    string
 }
 
 var DefaultConfig Props = Props{
-	Url:                 "localhost:19094",
 	GrpcEnableMetrics:   false,
 	GrpcEnableHistogram: false,
 }
 
-func (c *Client) Init(config interface{}, prom *prometheus.Registry) {
+func NewClient(url, config interface{}, prom *prometheus.Registry) *Client {
+	c := &Client{}
 	c.Prom = prom
 	c.Config = config.(Props)
 	if err := mergo.Merge(&c.Config, DefaultConfig); err != nil {
 		logger.Get().Panicf("Could not merge config: %s", err)
 	}
 	logger.Get().Debugf("GrpcClient config loaded: %+v", c.Config)
-	logger.Get().Infof("Initialized GRPC target address: %s", c.Config.Url)
+	logger.Get().Infof("Initialized GRPC target address: %s", c.Url)
 	c.RegisterMetrics()
 	dialOpts := []grpc.DialOption{
 		grpc.WithInsecure(),
@@ -53,7 +54,8 @@ func (c *Client) Init(config interface{}, prom *prometheus.Registry) {
 		grpcMetrics.EnableClientHandlingTimeHistogram()
 	}
 
-	cc, err := grpc.Dial(c.Config.Url, dialOpts...)
+	trimmedUrl := strings.TrimLeft(c.Url, "grpc://")
+	cc, err := grpc.Dial(trimmedUrl, dialOpts...)
 	if err != nil {
 		logger.Get().Error(err)
 	}
@@ -61,6 +63,7 @@ func (c *Client) Init(config interface{}, prom *prometheus.Registry) {
 		logger.Get().Fatal("didn't make connection")
 	}
 	c.client = pb.NewKafkaAmbassadorClient(cc)
+	return c
 }
 
 func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
@@ -118,4 +121,16 @@ func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uin
 	}
 	logger.Get().Debugf("Finished streaming. Topic: %s, Lines: %d, confirmedLines: %d, LastConfirmedOffset: %d, err: %s", topic, cnt, confirmedCnt, lastConfirmedOffset, err)
 	return confirmedCnt, lastConfirmedOffset, filteredCnt, err
+}
+
+func (c *Client) ListTopics() ([]string, error) {
+	var topics []string
+	resp, err := c.client.ListTopics(context.Background(), &pb.Empty{})
+	if err != nil {
+		return topics, err
+	}
+	for _, t := range resp.Topics {
+		topics = append(topics, t)
+	}
+	return topics, err
 }

@@ -13,7 +13,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	circuit "github.com/rubyist/circuitbreaker"
 	//"strconv"
-	"strings"
 	"time"
 )
 
@@ -21,16 +20,18 @@ import (
 
 type KafkaProxy struct {
 	//client     *circuit.HTTPClient
-	client  client.I
-	Config  Props
-	prom    *prometheus.Registry
-	breaker *circuit.Breaker
-	Topics  []string
+	client         client.I
+	Config         Props
+	prom           *prometheus.Registry
+	breaker        *circuit.Breaker
+	Topics         []string
+	MetadataTopics []string
 }
 
 type Props struct {
 	Url                    string
-	CircuitBreakerMaxFails int64 `yaml:"circuitbreaker_max_fails"`
+	CircuitBreakerMaxFails int64         `yaml:"circuitbreaker_max_fails"`
+	TopicRefreshInterval   time.Duration `yaml:"topic_refresh_interval"`
 	Topics                 []TopicProps
 	GrpcClientConfig       grpc_client.Props `yaml:"grpc"`
 	HttpClientConfig       http_client.Props `yaml:"http"`
@@ -43,8 +44,9 @@ type TopicProps struct {
 }
 
 var DefaultConfig Props = Props{
-	Url: "grpc://localhost:19094",
+	Url:                    "grpc://localhost:19094",
 	CircuitBreakerMaxFails: 3,
+	TopicRefreshInterval:   60 * time.Second,
 	//GrpcClientConfig:       grpc_client.Props{},
 	//HttpClientConfig:       http_client.Props{},
 	Topics: []TopicProps{
@@ -56,9 +58,7 @@ var DefaultConfig Props = Props{
 	},
 }
 
-func NewKafkaProxy(cfg Props, prom *prometheus.Registry) *KafkaProxy {
-	//maxFails := int64(cfg.GetInt("kafka_proxy.circuitbreaker.max_fails"))
-
+func NewKafkaProxy(cl client.I, cfg Props, prom *prometheus.Registry) *KafkaProxy {
 	if err := mergo.Merge(&cfg, DefaultConfig); err != nil {
 		logger.Get().Panic("Could not merge config: %s", err)
 	}
@@ -81,36 +81,44 @@ func NewKafkaProxy(cfg Props, prom *prometheus.Registry) *KafkaProxy {
 	}
 	logger.Get().Infof("kafka_proxy.topics: %s", topics)
 
-	var cl client.I
-
-	if strings.HasPrefix(cfg.Url, "grpc://") {
-		trimmedUrl := strings.TrimLeft(cfg.Url, "grpc://")
-		cl = &grpc_client.Client{}
-		if len(cfg.GrpcClientConfig.Url) == 0 {
-			cfg.GrpcClientConfig.Url = trimmedUrl
-		}
-		cl.Init(cfg.GrpcClientConfig, prom)
-	} else {
-		cl = &http_client.Client{}
-		if len(cfg.HttpClientConfig.Url) == 0 {
-			cfg.HttpClientConfig.Url = cfg.Url
-		}
-		cl.Init(cfg.HttpClientConfig, prom)
-	}
 	logger.Get().Infof("Enabling JSON validation for topics: %+v", validateJsonTopics)
 	cl.SetValidateJsonTopics(validateJsonTopics)
-	return &KafkaProxy{
+	logger.Get().Infof("Done with: %+v", validateJsonTopics)
+	kp := &KafkaProxy{
 		client:  cl,
 		Config:  cfg,
 		breaker: cb,
 		Topics:  topics,
 	}
+	kp.Run()
+	return kp
+}
 
+func (kp *KafkaProxy) Run() {
+	logger.Get().Infof("Running topic refresh routine with %v interval", kp.Config.TopicRefreshInterval)
+	go func() {
+		for {
+			logger.Get().Debug("Fetching kafka topic list")
+			topics, err := kp.client.ListTopics()
+			if err != nil {
+				logger.Get().Warn("Could NOT fetch topic list: %v", err)
+			} else {
+				kp.MetadataTopics = topics
+				logger.Get().Debugf("Fetched %d topics successfully: %+v", len(topics), topics)
+			}
+			time.Sleep(10 * kp.Config.TopicRefreshInterval)
+		}
+	}()
 }
 
 func (kp *KafkaProxy) IsTopicValid(topic string) bool {
 	for _, v := range kp.Topics {
 		if topic == v {
+			return true
+		}
+	}
+	for _, mt := range kp.MetadataTopics {
+		if topic == mt {
 			return true
 		}
 	}
@@ -133,6 +141,10 @@ func (kp *KafkaProxy) SendMessages(topic string, lor line_reader.I) (confirmedCn
 		logger.Get().Debug("Making no kafka proxy request; CircuitBreaker is open.")
 	}
 	return confirmedCnt, filteredCnt, err
+}
+
+func (kp *KafkaProxy) ListTopics() ([]string, error) {
+	return kp.client.ListTopics()
 }
 
 func (kp *KafkaProxy) GetBreaker() *circuit.Breaker {
