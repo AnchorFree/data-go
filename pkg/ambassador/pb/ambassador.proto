@@ -3,6 +3,13 @@ option go_package = "pb";
 
 service KafkaAmbassador {
 rpc Produce (stream ProdRq) returns (stream ProdRs) {}
+rpc ListTopics (Empty) returns (ListTopicsResponse) {}
+}
+
+message Empty {}
+
+message ListTopicsResponse {
+    repeated string topics = 1;
 }
 
 message ProdRq {

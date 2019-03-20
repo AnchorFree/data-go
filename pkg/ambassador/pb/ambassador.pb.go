@@ -3,13 +3,12 @@
 
 package pb
 
-import proto "github.com/golang/protobuf/proto"
-import fmt "fmt"
-import math "math"
-
 import (
-	context "golang.org/x/net/context"
+	context "context"
+	fmt "fmt"
+	proto "github.com/golang/protobuf/proto"
 	grpc "google.golang.org/grpc"
+	math "math"
 )
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -21,12 +20,82 @@ var _ = math.Inf
 // is compatible with the proto package it is being compiled against.
 // A compilation error at this line likely means your copy of the
 // proto package needs to be updated.
-const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
+const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
+
+type Empty struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Empty) Reset()         { *m = Empty{} }
+func (m *Empty) String() string { return proto.CompactTextString(m) }
+func (*Empty) ProtoMessage()    {}
+func (*Empty) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c19084e700d1da46, []int{0}
+}
+
+func (m *Empty) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Empty.Unmarshal(m, b)
+}
+func (m *Empty) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Empty.Marshal(b, m, deterministic)
+}
+func (m *Empty) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Empty.Merge(m, src)
+}
+func (m *Empty) XXX_Size() int {
+	return xxx_messageInfo_Empty.Size(m)
+}
+func (m *Empty) XXX_DiscardUnknown() {
+	xxx_messageInfo_Empty.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Empty proto.InternalMessageInfo
+
+type ListTopicsResponse struct {
+	Topics               []string `protobuf:"bytes,1,rep,name=topics,proto3" json:"topics,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListTopicsResponse) Reset()         { *m = ListTopicsResponse{} }
+func (m *ListTopicsResponse) String() string { return proto.CompactTextString(m) }
+func (*ListTopicsResponse) ProtoMessage()    {}
+func (*ListTopicsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c19084e700d1da46, []int{1}
+}
+
+func (m *ListTopicsResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListTopicsResponse.Unmarshal(m, b)
+}
+func (m *ListTopicsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListTopicsResponse.Marshal(b, m, deterministic)
+}
+func (m *ListTopicsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListTopicsResponse.Merge(m, src)
+}
+func (m *ListTopicsResponse) XXX_Size() int {
+	return xxx_messageInfo_ListTopicsResponse.Size(m)
+}
+func (m *ListTopicsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListTopicsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListTopicsResponse proto.InternalMessageInfo
+
+func (m *ListTopicsResponse) GetTopics() []string {
+	if m != nil {
+		return m.Topics
+	}
+	return nil
+}
 
 type ProdRq struct {
-	Topic                string   `protobuf:"bytes,1,opt,name=topic" json:"topic,omitempty"`
+	Topic                string   `protobuf:"bytes,1,opt,name=topic,proto3" json:"topic,omitempty"`
 	Message              []byte   `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
-	StreamOffset         uint64   `protobuf:"varint,3,opt,name=streamOffset" json:"streamOffset,omitempty"`
+	StreamOffset         uint64   `protobuf:"varint,3,opt,name=streamOffset,proto3" json:"streamOffset,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -36,16 +105,17 @@ func (m *ProdRq) Reset()         { *m = ProdRq{} }
 func (m *ProdRq) String() string { return proto.CompactTextString(m) }
 func (*ProdRq) ProtoMessage()    {}
 func (*ProdRq) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ambassador_dc02ba1e67403bba, []int{0}
+	return fileDescriptor_c19084e700d1da46, []int{2}
 }
+
 func (m *ProdRq) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProdRq.Unmarshal(m, b)
 }
 func (m *ProdRq) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProdRq.Marshal(b, m, deterministic)
 }
-func (dst *ProdRq) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProdRq.Merge(dst, src)
+func (m *ProdRq) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProdRq.Merge(m, src)
 }
 func (m *ProdRq) XXX_Size() int {
 	return xxx_messageInfo_ProdRq.Size(m)
@@ -78,7 +148,7 @@ func (m *ProdRq) GetStreamOffset() uint64 {
 }
 
 type ProdRs struct {
-	StreamOffset         uint64   `protobuf:"varint,3,opt,name=streamOffset" json:"streamOffset,omitempty"`
+	StreamOffset         uint64   `protobuf:"varint,3,opt,name=streamOffset,proto3" json:"streamOffset,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -88,16 +158,17 @@ func (m *ProdRs) Reset()         { *m = ProdRs{} }
 func (m *ProdRs) String() string { return proto.CompactTextString(m) }
 func (*ProdRs) ProtoMessage()    {}
 func (*ProdRs) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ambassador_dc02ba1e67403bba, []int{1}
+	return fileDescriptor_c19084e700d1da46, []int{3}
 }
+
 func (m *ProdRs) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_ProdRs.Unmarshal(m, b)
 }
 func (m *ProdRs) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	return xxx_messageInfo_ProdRs.Marshal(b, m, deterministic)
 }
-func (dst *ProdRs) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ProdRs.Merge(dst, src)
+func (m *ProdRs) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ProdRs.Merge(m, src)
 }
 func (m *ProdRs) XXX_Size() int {
 	return xxx_messageInfo_ProdRs.Size(m)
@@ -116,8 +187,31 @@ func (m *ProdRs) GetStreamOffset() uint64 {
 }
 
 func init() {
+	proto.RegisterType((*Empty)(nil), "Empty")
+	proto.RegisterType((*ListTopicsResponse)(nil), "ListTopicsResponse")
 	proto.RegisterType((*ProdRq)(nil), "ProdRq")
 	proto.RegisterType((*ProdRs)(nil), "ProdRs")
+}
+
+func init() { proto.RegisterFile("ambassador.proto", fileDescriptor_c19084e700d1da46) }
+
+var fileDescriptor_c19084e700d1da46 = []byte{
+	// 228 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x90, 0x4f, 0x4b, 0x03, 0x31,
+	0x10, 0xc5, 0x9b, 0xfe, 0xd9, 0xa5, 0x43, 0x41, 0x19, 0x45, 0x42, 0x4f, 0x31, 0xa7, 0x80, 0x25,
+	0x88, 0x7e, 0x02, 0x05, 0x4f, 0x0a, 0x4a, 0xf0, 0x24, 0x5e, 0x66, 0xdb, 0xac, 0x14, 0x89, 0x89,
+	0x99, 0x78, 0xf0, 0xdb, 0x8b, 0xe9, 0xaa, 0x88, 0x17, 0x6f, 0x79, 0x3f, 0xc2, 0x63, 0xde, 0x0f,
+	0xf6, 0x29, 0x74, 0xc4, 0x4c, 0x9b, 0x98, 0x6d, 0xca, 0xb1, 0x44, 0xdd, 0xc2, 0xec, 0x2a, 0xa4,
+	0xf2, 0xae, 0x57, 0x80, 0x37, 0x5b, 0x2e, 0xf7, 0x31, 0x6d, 0xd7, 0xec, 0x3c, 0xa7, 0xf8, 0xc2,
+	0x1e, 0x8f, 0xa0, 0x29, 0x95, 0x48, 0xa1, 0x26, 0x66, 0xee, 0x86, 0xa4, 0x1f, 0xa1, 0xb9, 0xcb,
+	0x71, 0xe3, 0x5e, 0xf1, 0x10, 0x66, 0x95, 0x49, 0xa1, 0x84, 0x99, 0xbb, 0x5d, 0x40, 0x09, 0x6d,
+	0xf0, 0xcc, 0xf4, 0xe4, 0xe5, 0x58, 0x09, 0xb3, 0x70, 0x5f, 0x11, 0x35, 0x2c, 0xb8, 0x64, 0x4f,
+	0xe1, 0xb6, 0xef, 0xd9, 0x17, 0x39, 0x51, 0xc2, 0x4c, 0xdd, 0x2f, 0xa6, 0x57, 0x43, 0x3b, 0xff,
+	0xe7, 0xf7, 0x19, 0xc1, 0xde, 0x35, 0xf5, 0xcf, 0x74, 0xf1, 0xbd, 0x0d, 0x8f, 0xa1, 0xfd, 0x2c,
+	0x78, 0x5b, 0x7b, 0x6c, 0xed, 0xee, 0xd0, 0xe5, 0xf0, 0x60, 0x3d, 0x32, 0xe2, 0x54, 0xe0, 0x09,
+	0xc0, 0xcf, 0x5e, 0x6c, 0x6c, 0xb5, 0xb0, 0x3c, 0xb0, 0x7f, 0x25, 0xe8, 0xd1, 0xe5, 0xf4, 0x61,
+	0x9c, 0xba, 0xae, 0xa9, 0xca, 0xce, 0x3f, 0x02, 0x00, 0x00, 0xff, 0xff, 0xaa, 0x9b, 0x5c, 0xe7,
+	0x46, 0x01, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -133,6 +227,7 @@ const _ = grpc.SupportPackageIsVersion4
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type KafkaAmbassadorClient interface {
 	Produce(ctx context.Context, opts ...grpc.CallOption) (KafkaAmbassador_ProduceClient, error)
+	ListTopics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListTopicsResponse, error)
 }
 
 type kafkaAmbassadorClient struct {
@@ -174,9 +269,19 @@ func (x *kafkaAmbassadorProduceClient) Recv() (*ProdRs, error) {
 	return m, nil
 }
 
+func (c *kafkaAmbassadorClient) ListTopics(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListTopicsResponse, error) {
+	out := new(ListTopicsResponse)
+	err := c.cc.Invoke(ctx, "/KafkaAmbassador/ListTopics", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KafkaAmbassadorServer is the server API for KafkaAmbassador service.
 type KafkaAmbassadorServer interface {
 	Produce(KafkaAmbassador_ProduceServer) error
+	ListTopics(context.Context, *Empty) (*ListTopicsResponse, error)
 }
 
 func RegisterKafkaAmbassadorServer(s *grpc.Server, srv KafkaAmbassadorServer) {
@@ -209,10 +314,33 @@ func (x *kafkaAmbassadorProduceServer) Recv() (*ProdRq, error) {
 	return m, nil
 }
 
+func _KafkaAmbassador_ListTopics_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KafkaAmbassadorServer).ListTopics(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/KafkaAmbassador/ListTopics",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KafkaAmbassadorServer).ListTopics(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _KafkaAmbassador_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "KafkaAmbassador",
 	HandlerType: (*KafkaAmbassadorServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListTopics",
+			Handler:    _KafkaAmbassador_ListTopics_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Produce",
@@ -222,21 +350,4 @@ var _KafkaAmbassador_serviceDesc = grpc.ServiceDesc{
 		},
 	},
 	Metadata: "ambassador.proto",
-}
-
-func init() { proto.RegisterFile("ambassador.proto", fileDescriptor_ambassador_dc02ba1e67403bba) }
-
-var fileDescriptor_ambassador_dc02ba1e67403bba = []byte{
-	// 170 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x48, 0xcc, 0x4d, 0x4a,
-	0x2c, 0x2e, 0x4e, 0x4c, 0xc9, 0x2f, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x57, 0x8a, 0xe1, 0x62,
-	0x0b, 0x28, 0xca, 0x4f, 0x09, 0x2a, 0x14, 0x12, 0xe1, 0x62, 0x2d, 0xc9, 0x2f, 0xc8, 0x4c, 0x96,
-	0x60, 0x54, 0x60, 0xd4, 0xe0, 0x0c, 0x82, 0x70, 0x84, 0x24, 0xb8, 0xd8, 0x73, 0x53, 0x8b, 0x8b,
-	0x13, 0xd3, 0x53, 0x25, 0x98, 0x14, 0x18, 0x35, 0x78, 0x82, 0x60, 0x5c, 0x21, 0x25, 0x2e, 0x9e,
-	0xe2, 0x92, 0xa2, 0xd4, 0xc4, 0x5c, 0xff, 0xb4, 0xb4, 0xe2, 0xd4, 0x12, 0x09, 0x66, 0x05, 0x46,
-	0x0d, 0x96, 0x20, 0x14, 0x31, 0x25, 0x1d, 0xa8, 0xe9, 0xc5, 0xc4, 0xa8, 0x36, 0x32, 0xe1, 0xe2,
-	0xf7, 0x4e, 0x4c, 0xcb, 0x4e, 0x74, 0x84, 0x3b, 0x52, 0x48, 0x91, 0x8b, 0x1d, 0x64, 0x40, 0x69,
-	0x72, 0xaa, 0x10, 0xbb, 0x1e, 0xc4, 0xa1, 0x52, 0x50, 0x46, 0xb1, 0x12, 0x83, 0x06, 0xa3, 0x01,
-	0xa3, 0x13, 0x4b, 0x14, 0x53, 0x41, 0x52, 0x12, 0x1b, 0xd8, 0x3b, 0xc6, 0x80, 0x00, 0x00, 0x00,
-	0xff, 0xff, 0xb3, 0x33, 0xef, 0x49, 0xe2, 0x00, 0x00, 0x00,
 }
