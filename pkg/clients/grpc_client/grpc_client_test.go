@@ -183,7 +183,8 @@ func TestListTopics(t *testing.T) {
 		grpcSrv := grpc.NewServer()
 		pb.RegisterKafkaAmbassadorServer(grpcSrv, mockServer)
 		go func() {
-			grpcSrv.Serve(lis)
+			err := grpcSrv.Serve(lis)
+			assert.NoError(t, err)
 		}()
 		defer grpcSrv.Stop()
 		//init client
