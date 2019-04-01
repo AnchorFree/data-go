@@ -102,7 +102,7 @@ func (c *Client) ListTopics() ([]string, error) {
 	var topics []string
 
 	var err error
-	fullUrl := fmt.Sprintf("%s/topics")
+	fullUrl := fmt.Sprintf("%s/topics", strings.Trim(c.Url, "/ "))
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(fullUrl)
 	req.Header.SetMethod("GET")
@@ -110,11 +110,11 @@ func (c *Client) ListTopics() ([]string, error) {
 
 	resp := fasthttp.AcquireResponse()
 	err = c.client.DoTimeout(req, resp, c.Config.RequestTimeout)
-	if resp != nil {
+	if resp == nil {
 		if resp.StatusCode() > 299 {
-			logger.Get().Debugf("Kafka proxy topic list request status: %s", resp.StatusCode())
+			logger.Get().Debugf("Kafka proxy topic list request status: %d", resp.StatusCode())
+			return topics, errors.New("Non-200 http code returned")
 		}
-		return topics, errors.New("Non-200 http code returned")
 	}
 	if err != nil {
 		logger.Get().Debugf("Kafka proxy topic list request error: %s", err)

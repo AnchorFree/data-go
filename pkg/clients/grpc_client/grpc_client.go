@@ -31,9 +31,10 @@ var DefaultConfig Props = Props{
 	GrpcEnableHistogram: false,
 }
 
-func NewClient(url, config interface{}, prom *prometheus.Registry) *Client {
+func NewClient(url string, config interface{}, prom *prometheus.Registry) *Client {
 	c := &Client{}
 	c.Prom = prom
+	c.Url = url
 	c.Config = config.(Props)
 	if err := mergo.Merge(&c.Config, DefaultConfig); err != nil {
 		logger.Get().Panicf("Could not merge config: %s", err)
