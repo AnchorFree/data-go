@@ -86,6 +86,7 @@ func NewKafkaProxy(cl client.I, cfg Props, prom *prometheus.Registry) *KafkaProx
 	logger.Get().Infof("Done with: %+v", validateJsonTopics)
 	kp := &KafkaProxy{
 		client:  cl,
+		prom:    prom,
 		Config:  cfg,
 		breaker: cb,
 		Topics:  topics,
