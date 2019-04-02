@@ -2,12 +2,14 @@ package grpc_client
 
 import (
 	"bytes"
+	"context"
 	//"fmt"
 	pb "github.com/anchorfree/data-go/pkg/ambassador/pb"
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/anchorfree/data-go/pkg/testutils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 	"io"
 	"net"
@@ -20,8 +22,14 @@ type TopicMessage struct {
 }
 
 type TestServer struct {
+	mock.Mock
 	ch chan TopicMessage
 	t  *testing.T
+}
+
+func (s *TestServer) ListTopics(ctx context.Context, nothing *pb.Empty) (*pb.ListTopicsResponse, error) {
+	args := s.Called(ctx, nothing)
+	return args.Get(0).(*pb.ListTopicsResponse), args.Error(1)
 }
 
 func (s *TestServer) Produce(stream pb.KafkaAmbassador_ProduceServer) error {
@@ -60,13 +68,10 @@ sieben acht gute Nacht`)
 	go func() {
 		grpcSrv.Serve(lis)
 	}()
+	defer grpcSrv.Stop()
 
 	prom := prometheus.NewRegistry()
-	cl := &Client{}
-	cfg := Props{
-		Url: addr,
-	}
-	cl.Init(cfg, prom)
+	cl := NewClient(addr, Props{}, prom)
 	lor := line_offset_reader.NewReader(bytes.NewReader(fullMessage))
 	_, lastConfirmedOffset, _, err := cl.SendMessages(topic, lor)
 	if err != nil {
@@ -86,7 +91,6 @@ sieben acht gute Nacht`)
 	expectedLastOffset := offsets[len(offsets)-1]
 	assert.Equal(t, expectedLastOffset, lastConfirmedOffset, "Last message offset does not match")
 
-	grpcSrv.Stop()
 }
 
 type jsonFilterTest struct {
@@ -129,11 +133,7 @@ func TestJsonFilter(t *testing.T) {
 		grpcSrv.Serve(lis)
 	}()
 	prom := prometheus.NewRegistry()
-	cl := &Client{}
-	cfg := Props{
-		Url: addr,
-	}
-	cl.Init(cfg, prom)
+	cl := NewClient(addr, Props{}, prom)
 	validateJsonTopics := map[string]bool{
 		topic: true,
 	}
@@ -159,4 +159,40 @@ func TestJsonFilter(t *testing.T) {
 	}
 
 	grpcSrv.Stop()
+}
+
+func TestListTopics(t *testing.T) {
+	tests := []struct {
+		topics []string
+		err    error
+	}{
+		{
+			topics: []string{"test", "another", "extra"},
+			err:    nil,
+		},
+	}
+	for _, test := range tests {
+		topicsResp := &pb.ListTopicsResponse{}
+		topicsResp.Topics = test.topics
+		mockServer := &TestServer{}
+		mockServer.On("ListTopics", mock.Anything, mock.Anything).Return(topicsResp, test.err)
+		//init server
+		lis, err := net.Listen("tcp", ":0")
+		assert.NoError(t, err, "Could not bind: %s", err)
+		addr := lis.Addr().String()
+		grpcSrv := grpc.NewServer()
+		pb.RegisterKafkaAmbassadorServer(grpcSrv, mockServer)
+		go func() {
+			err := grpcSrv.Serve(lis)
+			assert.NoError(t, err)
+		}()
+		defer grpcSrv.Stop()
+		//init client
+		prom := prometheus.NewRegistry()
+		cl := NewClient(addr, Props{}, prom)
+		//test
+		fetchedTopics, err := cl.ListTopics()
+		assert.Equal(t, test.topics, fetchedTopics)
+		mockServer.AssertExpectations(t)
+	}
 }

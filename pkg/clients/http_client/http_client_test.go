@@ -3,14 +3,16 @@ package http_client
 import (
 	"bytes"
 	"fmt"
-	"github.com/anchorfree/data-go/pkg/line_offset_reader"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
+
+	"github.com/anchorfree/data-go/pkg/line_offset_reader"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHttpRequests(t *testing.T) {
@@ -33,11 +35,7 @@ func TestHttpRequests(t *testing.T) {
 	defer ts.Close()
 
 	prom := prometheus.NewRegistry()
-	cl := &Client{}
-	cfg := Props{
-		Url: ts.URL,
-	}
-	cl.Init(cfg, prom)
+	cl := NewClient(ts.URL, Props{}, prom)
 	lor := line_offset_reader.NewReader(bytes.NewReader(message))
 	//confirmedCnt, lastConfirmedOffset, err := cl.SendMessages(topic, lor)
 	_, _, _, err := cl.SendMessages(topic, lor)
@@ -94,11 +92,7 @@ func TestJsonFilter(t *testing.T) {
 	}))
 	defer ts.Close()
 	prom := prometheus.NewRegistry()
-	cl := &Client{}
-	cfg := Props{
-		Url: ts.URL,
-	}
-	cl.Init(cfg, prom)
+	cl := NewClient(ts.URL, Props{}, prom)
 	validateJsonTopics := map[string]bool{
 		topic: true,
 	}
@@ -121,5 +115,35 @@ func TestJsonFilter(t *testing.T) {
 		assert.Equalf(t, string(expectedMessage), string(loopedRecord.message), "test: %s", test.name)
 		assert.Equalf(t, expectedTopic, loopedRecord.topic, "test: %s", test.name)
 		assert.Equalf(t, uint64(expectedFilteredCnt), filteredCnt, "test: %s", test.name)
+	}
+}
+
+func TestListTopics(t *testing.T) {
+	tests := []struct {
+		topics []string
+		err    error
+	}{
+		{
+			topics: []string{"test", "another", "extra"},
+			err:    nil,
+		},
+	}
+	for _, test := range tests {
+		//init server
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, err := ioutil.ReadAll(r.Body)
+			assert.Equal(t, "/topics", r.URL.EscapedPath(), "Request path is not what expected")
+			fmt.Fprintln(w, strings.Join(test.topics, "\n"))
+			assert.NoError(t, err)
+		}))
+		defer ts.Close()
+		//init client
+		prom := prometheus.NewRegistry()
+		cl := NewClient(ts.URL, Props{}, prom)
+		//test
+		fetchedTopics, err := cl.ListTopics()
+		assert.Equal(t, test.err, err)
+		assert.Equal(t, test.topics, fetchedTopics)
 	}
 }

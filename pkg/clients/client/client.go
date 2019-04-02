@@ -8,11 +8,11 @@ import (
 )
 
 type I interface {
-	Init(interface{}, *prometheus.Registry)
 	SendMessages(string, line_reader.I) (uint64, uint64, uint64, error)
 	FilterTopicMessage(string, []byte) (string, []byte, bool)
 	SetValidateJsonTopics(map[string]bool)
 	GetValidateJsonTopics() map[string]bool
+	ListTopics() ([]string, error)
 }
 
 type Props struct {
