@@ -162,6 +162,11 @@ func (kp *KafkaProxy) GetTopicProps(topic string) TopicProps {
 			return tp
 		}
 	}
+	for _, tp := range kp.MetadataTopics {
+		if tp == topic {
+			return TopicProps{}
+		}
+	}
 	logger.Get().Errorf("Could not find topic props: %s", topic)
 	return TopicProps{}
 }
