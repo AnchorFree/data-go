@@ -12,17 +12,19 @@ import (
 )
 
 type EF struct {
-	ClientTs    int64  `json:"client_ts"`
-	CloudFront  int    `json:"cloudfront"`
-	FromAsDesc  string `json:"from_as_desc"`
-	FromAsn     string `json:"from_asn"`
-	FromCity    string `json:"from_city"`
-	FromCountry string `json:"from_country"`
-	FromRegion  string `json:"from_region"`
-	FromIsp     string `json:"from_isp"`
-	FromOrgName string `json:"from_org_name"`
-	Host        string `json:"host"`
-	ServerTs    int64  `json:"server_ts"`
+	ClientTs      int64   `json:"client_ts"`
+	CloudFront    int     `json:"cloudfront"`
+	FromAsDesc    string  `json:"from_as_desc"`
+	FromAsn       string  `json:"from_asn"`
+	FromCity      string  `json:"from_city"`
+	FromCountry   string  `json:"from_country"`
+	FromRegion    string  `json:"from_region"`
+	FromIsp       string  `json:"from_isp"`
+	FromOrgName   string  `json:"from_org_name"`
+	FromLatitude  float64 `json:"from_latitude"`
+	FromLongitude float64 `json:"from_longitude"`
+	Host          string  `json:"host"`
+	ServerTs      int64   `json:"server_ts"`
 }
 
 var raw []byte = []byte(`{"event":"test","payload":{"field": "hi"},"tail":"latest"}`)
@@ -37,6 +39,8 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 	fromAsn := "54500"
 	fromAsDesc := "AS54500"
 	fromIsp := "AnchorFree"
+	fromLatitude := float64(50.433300)
+	fromLongitude := float64(30.516700)
 	cloudFront := 1
 	fromOrgName := "EGIHosting"
 	serverTs := int64(1521800927956)
@@ -52,6 +56,8 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 	req.Header.Set("x_af_c_country", fromCountry)
 	req.Header.Set("x_af_c_city", fromCity)
 	req.Header.Set("x_af_c_region", fromRegion)
+	req.Header.Set("x_af_latitude", fmt.Sprintf("%f", fromLatitude))
+	req.Header.Set("x_af_longitude", fmt.Sprintf("%f", fromLongitude))
 	req.Header.Set("x_af_asn", fromAsn)
 	req.Header.Set("x_af_asdescription", fromAsDesc)
 	req.Header.Set("x_af_ispname", fromIsp)
@@ -77,6 +83,8 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 		assert.Equal(t, fromCity, rec.FromCity, "from_city field is not correct")
 		assert.Equal(t, fromRegion, rec.FromRegion, "from_region field is not correct")
 		assert.Equal(t, fromCountry, rec.FromCountry, "from_country field is not correct")
+		assert.Equal(t, fromLatitude, rec.FromLatitude, "from_latitude field is not correct")
+		assert.Equal(t, fromLongitude, rec.FromLongitude, "from_longitude field is not correct")
 		assert.Equal(t, fromIsp, rec.FromIsp, "from_isp field is not correct")
 		assert.Equal(t, fromOrgName, rec.FromOrgName, "from_org_name field is not correct")
 		assert.Equal(t, host, rec.Host, "host field is not correct")
@@ -135,6 +143,8 @@ func TestExtraFieldsFromCityDb(t *testing.T) {
 		assert.Equal(t, "London", rec.FromCity, "from_city field is not correct")
 		assert.Equal(t, "ENG", rec.FromRegion, "from_region field is not correct")
 		assert.Equal(t, "GB", rec.FromCountry, "from_country field is not correct")
+		assert.Equal(t, 51.5142, rec.FromLatitude, "from_latitude field is not correct")
+		assert.Equal(t, -0.0931, rec.FromLongitude, "from_longitude field is not correct")
 
 		if readerErr != nil {
 			break
