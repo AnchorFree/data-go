@@ -1,6 +1,7 @@
 package extra_fields
 
 import (
+	"errors"
 	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/golang/gddo/httputil/header"
 	geoip2 "github.com/oschwald/geoip2-golang"
@@ -107,37 +108,33 @@ func GetIPAdress(req *http.Request) net.IP {
 
 func (f *ExtraFields) coordinates(req *http.Request, ip net.IP) error {
 
-	afLongitude := GetMatchingHeader(req.Header, "x_af_longitude")
-	if afLongitude == "" {
-		geoRec, err := f.GetCityDBRecord(ip)
-		if err != nil {
-			logger.Get().Warnf("Could not get geoip cityDB record: %v", err)
-			return err
-		}
-		f.Longitude = geoRec.Location.Longitude
-	} else {
-		val, err := strconv.ParseFloat(afLongitude, 64)
-		if err == nil {
-			f.Longitude = val
-		} else {
-			logger.Get().Warnf("Could not parse longitude value: %s", afLongitude)
-		}
-	}
-
-	afLatitude := GetMatchingHeader(req.Header, "x_af_latitude")
-	if afLatitude == "" {
+	afLatLong := GetMatchingHeader(req.Header, "x_af_c_ll")
+	if afLatLong == "" {
 		geoRec, err := f.GetCityDBRecord(ip)
 		if err != nil {
 			logger.Get().Warnf("Could not get geoip cityDB record: %v", err)
 			return err
 		}
 		f.Latitude = geoRec.Location.Latitude
+		f.Longitude = geoRec.Location.Longitude
 	} else {
-		val, err := strconv.ParseFloat(afLatitude, 64)
+		parts := strings.Split(afLatLong, ",")
+		if len(parts) != 2 {
+			logger.Get().Warnf("Invalid x_af_c_ll value: %s", afLatLong)
+			return errors.New("Invalid x_af_c_ll value")
+		}
+		afLat, afLong := parts[0], parts[1]
+		latVal, err := strconv.ParseFloat(afLat, 64)
 		if err == nil {
-			f.Latitude = val
+			f.Latitude = latVal
 		} else {
-			logger.Get().Warnf("Could not parse latitude value: %s", afLatitude)
+			logger.Get().Warnf("Could not parse latitude value: %s", afLat)
+		}
+		longVal, err := strconv.ParseFloat(afLong, 64)
+		if err == nil {
+			f.Longitude = longVal
+		} else {
+			logger.Get().Warnf("Could not parse longitude value: %s", afLong)
 		}
 	}
 	return nil
