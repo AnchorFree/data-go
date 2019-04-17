@@ -36,9 +36,19 @@ func (f *ExtraFields) GeoOrigin(req *http.Request) {
 		return
 	}
 
-	f.countryName(req, ip)
-	f.cityName(req, ip)
-	f.coordinates(req, ip)
+	var err error
+	err = f.countryName(req, ip)
+	if err != nil {
+		logger.Get().Warnf("Could not set CountryName as an extra field")
+	}
+	err = f.cityName(req, ip)
+	if err != nil {
+		logger.Get().Warnf("Could not set CityName as an extra field")
+	}
+	err = f.coordinates(req, ip)
+	if err != nil {
+		logger.Get().Warnf("Could not set Coordinates (Latitude/Longitude) as extra fields")
+	}
 }
 
 //cityDB.City() wrapper function, to cache the result.
