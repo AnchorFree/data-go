@@ -1,13 +1,21 @@
-FROM golang:1.10.0
+# Build stage
+FROM golang:1.12.4 AS builder
 
-ENV BASE_DIR /go/src/github.com/anchorfree/data-go
+# Enable support of go modules by default
+ENV GO111MODULE on
+ENV BASE_DIR /go/src/data-go
 
-ADD . ${BASE_DIR}
-
-RUN curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+# Warming modules cache with project dependencies
 WORKDIR ${BASE_DIR}
-RUN dep init && dep ensure
-RUN cd ${BASE_DIR} && go test ./...
+COPY go.mod go.sum ./
+RUN go mod download
 
+# Copy project source code to WORKDIR
+COPY . .
+
+# Run tests and build on success
+RUN go test ./...
+
+# Final container stage
 FROM alpine
 RUN touch /test.OK
