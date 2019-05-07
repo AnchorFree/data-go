@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+type IFunc func() interface{}
+
 var (
 	cityDB     *geoip2.Reader
 	ispDB      *geoip2.Reader
@@ -128,9 +130,10 @@ func Init(geoip2CityPath string, geoip2IspPath string, gSet *geo.Geo) {
 
 type ExtraFieldsReader struct {
 	line_reader.I
-	reader      line_reader.I
-	request     *http.Request
-	extraFields []byte
+	reader         line_reader.I
+	request        *http.Request
+	extraFields    []byte
+	extraFieldFunc map[string]func() interface{}
 }
 
 func NewExtraFieldsReader(reader line_reader.I, req *http.Request) *ExtraFieldsReader {
@@ -138,6 +141,7 @@ func NewExtraFieldsReader(reader line_reader.I, req *http.Request) *ExtraFieldsR
 		reader:      reader,
 		request:     req,
 		extraFields: []byte(""),
+		extraFieldFunc: make(map[string]func() interface{}),
 	}
 }
 
@@ -146,7 +150,7 @@ func AppendJsonExtraFields(line []byte, extra []byte) []byte {
 		return extra
 	}
 	// we don't need to merge empty extra fileds
-	if bytes.Equal(extra, []byte("{}")) {
+	if 0 == len(extra) || bytes.Equal(extra, []byte("{}")) {
 		return line
 	}
 	// could not find closing breaket, broken json
@@ -161,9 +165,33 @@ func (r *ExtraFieldsReader) With(extra map[string]interface{}) *ExtraFieldsReade
 	if err != nil {
 		logger.Get().Errorf("Could not marshal extra fields: %v", extra)
 	} else {
-		r.extraFields = extraJson
+		r.extraFields = AppendJsonExtraFields(r.extraFields, extraJson)
 	}
 	return r
+}
+
+func (r *ExtraFieldsReader) WithFuncUint64(key string, f func() uint64) *ExtraFieldsReader {
+	r.WithFunc(key, func() interface{} {
+		return interface{}(f())
+	})
+	return r
+}
+
+func (r *ExtraFieldsReader) WithFunc(key string, f func() interface{}) *ExtraFieldsReader {
+	r.extraFieldFunc[key] = f
+	return r
+}
+
+func (r *ExtraFieldsReader) renderExtraFieldsFunc() []byte {
+	extraFields := make(map[string]interface{})
+	for key, f := range r.extraFieldFunc {
+		extraFields[key] = f()
+	}
+	renderedExtraFields, err := json.Marshal(extraFields)
+	if err != nil {
+		logger.Get().Errorf("Could not marshal function extra fields: %v", extraFields)
+	}
+	return renderedExtraFields
 }
 
 func (r *ExtraFieldsReader) ReadLine() (line []byte, offset uint64, err error) {
@@ -182,5 +210,9 @@ func (r *ExtraFieldsReader) ReadLine() (line []byte, offset uint64, err error) {
 	if len(r.extraFields) > 0 {
 		line = AppendJsonExtraFields(line, r.extraFields)
 	}
+	if len(r.extraFieldFunc) > 0 {
+		line = AppendJsonExtraFields(line, r.renderExtraFieldsFunc())
+	}
+
 	return line, offset, err
 }

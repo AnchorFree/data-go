@@ -151,3 +151,70 @@ func TestExtraFieldsFromCityDb(t *testing.T) {
 	}
 
 }
+
+func TestExtraFieldsReader_With(t *testing.T) {
+	topic := "test"
+	path := fmt.Sprintf("/ula?report_type=%s", topic)
+	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
+	lineReader := lor.NewReader(bytes.NewReader(raw))
+
+	efr := NewExtraFieldsReader(lineReader, req)
+	efr.With(map[string]interface{}{"override": "1"}).
+		With(map[string]interface{}{"override": 5}).
+		With(map[string]interface{}{"int": 2}).
+		With(map[string]interface{}{"string": "str"})
+
+	for {
+		line, _, rErr := efr.ReadLine()
+		t.Logf("%s\n", line)
+
+		var rec map[string]interface{}
+		err := json.Unmarshal(line, &rec)
+		assert.Equal(t, err, nil, "failed to unmarshal json")
+
+		t.Logf("%#v\n", rec)
+		assert.Equal(t, rec["override"], float64(5), "field override is not correct")
+		assert.Equal(t, rec["int"], float64(2), "field int is not correct")
+		assert.Equal(t, rec["string"], "str", "field string is not correct")
+
+		if rErr != nil {
+			break
+		}
+	}
+}
+
+func TestExtraFieldsReader_WithFuncUint64(t *testing.T) {
+	fuint64 := func() uint64 {
+		return uint64(5)
+	}
+
+	topic := "test"
+	path := fmt.Sprintf("/ula?report_type=%s", topic)
+	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
+	lineReader := lor.NewReader(bytes.NewReader(raw))
+
+	efr := NewExtraFieldsReader(lineReader, req)
+	efr.WithFuncUint64("uint64", fuint64)
+	for {
+		line, _, rErr := efr.ReadLine()
+		t.Logf("%s\n", line)
+
+		var rec map[string]interface{}
+		err := json.Unmarshal(line, &rec)
+		assert.Equal(t, err, nil, "failed to unmarshal json")
+
+		t.Logf("%#v\n", rec)
+		assert.Equal(t, rec["uint64"], float64(5), "field uint64 is not correct")
+
+		if rErr != nil {
+			break
+		}
+	}
+}
+
+func TestAppendJsonExtraFields(t *testing.T) {
+	assert.Equal(t, AppendJsonExtraFields([]byte{}, []byte{}), []byte{}, "Failed to append empty []byte{}")
+	assert.Equal(t, AppendJsonExtraFields([]byte{}, []byte(`{}`)), []byte(`{}`), "Failed to append empty json objects to []byte{}")
+	assert.Equal(t, AppendJsonExtraFields([]byte(`{}`), []byte(`{}`)), []byte(`{}`), "Failed to append empty json objects")
+	assert.Equal(t, AppendJsonExtraFields([]byte(`{}`), []byte{}), []byte(`{}`), "Failed to append empty json objects")
+}

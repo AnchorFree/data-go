@@ -11,11 +11,14 @@ require (
 	github.com/golang/protobuf v1.3.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/imdario/mergo v0.3.7
+	github.com/klauspost/compress v1.5.0 // indirect
+	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/oschwald/geoip2-golang v1.2.1
 	github.com/oschwald/maxminddb-golang v1.3.0 // indirect
 	github.com/prometheus/client_golang v0.9.2
 	github.com/rubyist/circuitbreaker v2.2.1+incompatible
 	github.com/stretchr/testify v1.3.0
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v0.0.0-20171207120941-e5f51c11919d
 	github.com/yl2chen/cidranger v0.0.0-20180214081945-928b519e5268
 	go.uber.org/atomic v1.3.2 // indirect
@@ -23,4 +26,5 @@ require (
 	go.uber.org/zap v1.9.1
 	golang.org/x/net v0.0.0-20190415214537-1da14a5a36f2
 	google.golang.org/grpc v1.20.1
+	gopkg.in/yaml.v2 v2.2.2
 )
