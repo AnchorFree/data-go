@@ -6,7 +6,7 @@ import (
 )
 
 type sequenceManager struct {
-	sync.Mutex
+	sync.RWMutex
 	sequences map[string]*uint64
 }
 
@@ -23,13 +23,21 @@ func (sm *sequenceManager) GetForName(name string) func() uint64 {
 	}
 }
 
-func (sm *sequenceManager) getValuePrt(name string) (valptr *uint64) {
-	sm.Lock()
-	defer sm.Unlock()
+func (sm *sequenceManager) getValuePrt(name string) *uint64 {
+	sm.RLock()
 	valptr, ok := sm.sequences[name]
+	sm.RUnlock()
+	if ok {
+		return valptr
+	}
+
+	sm.Lock()
+	valptr, ok = sm.sequences[name]
 	if !ok {
 		valptr = new(uint64)
 		sm.sequences[name] = valptr
 	}
-	return
+	sm.Unlock()
+
+	return valptr
 }

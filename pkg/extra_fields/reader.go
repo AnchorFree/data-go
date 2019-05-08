@@ -138,9 +138,9 @@ type ExtraFieldsReader struct {
 
 func NewExtraFieldsReader(reader line_reader.I, req *http.Request) *ExtraFieldsReader {
 	return &ExtraFieldsReader{
-		reader:      reader,
-		request:     req,
-		extraFields: []byte(""),
+		reader:         reader,
+		request:        req,
+		extraFields:    []byte(""),
 		extraFieldFunc: make(map[string]func() interface{}),
 	}
 }
