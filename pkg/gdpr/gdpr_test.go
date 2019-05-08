@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/anchorfree/data-go/pkg/geo"
 	"github.com/stretchr/testify/assert"
+	"net"
 	"testing"
 )
 
@@ -199,5 +200,28 @@ func BenchmarkIPv6Regex(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		ipv6Regex.FindAll(benchMsg, -1)
+	}
+}
+
+func BenchmarkParseIPv4(b *testing.B) {
+	b.ResetTimer()
+	str := "192.168.12.2"
+	for i := 0; i < b.N; i++ {
+		net.ParseIP(str)
+	}
+}
+
+func BenchmarkParseIPv6(b *testing.B) {
+	b.ResetTimer()
+	str := "2001:0db8:85a3:0000:0000:8a2e:0370:7334"
+	for i := 0; i < b.N; i++ {
+		net.ParseIP(str)
+	}
+}
+
+func BenchmarkFindIP(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		findIPs(benchMsg)
 	}
 }

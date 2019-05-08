@@ -35,9 +35,16 @@ func ipGDPR(address string) string {
 }
 
 func findIPs(msg []byte) [][]byte {
-	ret := ipv4Regex.FindAll(msg, -1)
+	ret := [][]byte{}
+	for _, ip := range ipv4Regex.FindAll(msg, -1) {
+		if net.ParseIP(string(ip)) != nil {
+			ret = append(ret, ip)
+		}
+	}
 	for _, matches := range ipv6Regex.FindAllSubmatch(msg, -1) {
-		ret = append(ret, matches[1])
+		if len(matches) > 2 && net.ParseIP(string(matches[1])) != nil {
+			ret = append(ret, matches[1])
+		}
 	}
 	return ret
 }
