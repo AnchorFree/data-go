@@ -184,9 +184,15 @@ func TestExtraFieldsReader_With(t *testing.T) {
 }
 
 func TestExtraFieldsReader_WithFuncUint64(t *testing.T) {
+	initSeq := uint64(0)
 	fuint64 := func() uint64 {
-		return uint64(5)
+		initSeq++
+		return initSeq
 	}
+
+	var raw = []byte(`{"event":"test","payload":{"field": "hi"},"tail":"latest"}
+ 					  {"event":"test","payload":{"field": "hi"},"tail":"latest"}
+					  {"event":"test","payload":{"field": "hi"},"tail":"latest"}`)
 
 	topic := "test"
 	path := fmt.Sprintf("/ula?report_type=%s", topic)
@@ -195,6 +201,8 @@ func TestExtraFieldsReader_WithFuncUint64(t *testing.T) {
 
 	efr := NewExtraFieldsReader(lineReader, req)
 	efr.WithFuncUint64("uint64", fuint64)
+
+	i := float64(0)
 	for {
 		line, _, rErr := efr.ReadLine()
 		t.Logf("%s\n", line)
@@ -204,7 +212,46 @@ func TestExtraFieldsReader_WithFuncUint64(t *testing.T) {
 		assert.Equal(t, err, nil, "failed to unmarshal json")
 
 		t.Logf("%#v\n", rec)
-		assert.Equal(t, rec["uint64"], float64(5), "field uint64 is not correct")
+		i++
+		assert.Equal(t, rec["uint64"], i, "field uint64 is not correct")
+
+		if rErr != nil {
+			break
+		}
+	}
+}
+
+func TestExtraFieldsReader_WithFunc(t *testing.T) {
+	initSeq := uint64(0)
+	f := func() interface{} {
+		initSeq++
+		return interface{}(initSeq)
+	}
+
+	var raw = []byte(`{"event":"test","payload":{"field": "hi"},"tail":"latest"}
+ 					  {"event":"test","payload":{"field": "hi"},"tail":"latest"}
+					  {"event":"test","payload":{"field": "hi"},"tail":"latest"}`)
+
+	topic := "test"
+	path := fmt.Sprintf("/ula?report_type=%s", topic)
+	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
+	lineReader := lor.NewReader(bytes.NewReader(raw))
+
+	efr := NewExtraFieldsReader(lineReader, req)
+	efr.WithFunc("uint64", f)
+
+	i := float64(0)
+	for {
+		line, _, rErr := efr.ReadLine()
+		t.Logf("%s\n", line)
+
+		var rec map[string]interface{}
+		err := json.Unmarshal(line, &rec)
+		assert.Equal(t, err, nil, "failed to unmarshal json")
+
+		t.Logf("%#v\n", rec)
+		i++
+		assert.Equal(t, rec["uint64"], i, "field uint64 is not correct")
 
 		if rErr != nil {
 			break
