@@ -10,6 +10,9 @@ import (
 
 var ipv4Regex = regexp.MustCompile(`([0-9]{1,3}\.){3}[0-9]{1,3}`)
 
+//no support for IPv4-IPv6 embedded notation
+var ipv6Regex = regexp.MustCompile(`(?i)(?:[^0-9a-f:])(([0-9a-f]{1,4}:){1,7}:|:(:[0-9a-f]{1,4}){1,7}|([0-9a-f]{1,4}:){1,7}[0-9a-f]{0,4}(:[0-9a-f]{1,4}){1,7})(?:[^0-9a-f:])`)
+
 type Reader struct {
 	line_reader.I
 	reader line_reader.I
@@ -32,7 +35,18 @@ func ipGDPR(address string) string {
 }
 
 func findIPs(msg []byte) [][]byte {
-	return ipv4Regex.FindAll(msg, -1)
+	ret := [][]byte{}
+	for _, ip := range ipv4Regex.FindAll(msg, -1) {
+		if net.ParseIP(string(ip)) != nil {
+			ret = append(ret, ip)
+		}
+	}
+	for _, matches := range ipv6Regex.FindAllSubmatch(msg, -1) {
+		if len(matches) > 2 && net.ParseIP(string(matches[1])) != nil {
+			ret = append(ret, matches[1])
+		}
+	}
+	return ret
 }
 
 func (r *Reader) ApplyGDPR(msg []byte) []byte {

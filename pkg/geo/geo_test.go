@@ -17,6 +17,8 @@ func TestGeo(t *testing.T) {
 		198.8.84.226 af;
 		54.182.0.0/16 aws;
 		54.182.0.0/16 amz;
+		2400::/14 v6;
+		::1 lo;
 		`)
 	g := NewGeo().FromBytes(data)
 	assert.Equalf(t, 9, g.Len(), "Amount of IPs does not match")
@@ -28,6 +30,7 @@ func TestGeo(t *testing.T) {
 	assert.Truef(t, g.Match("54.182.1.1", "amz"), "Did not match af record")
 	assert.Falsef(t, g.Match("123.123.111.222", "af"), "Should not match record")
 	assert.Equalf(t, DefaultValue, g.Get("8.8.8.8"), "Should be default value")
+	assert.Truef(t, g.Match("2400::1:2:3", "v6"), "Did not match v6 record")
 }
 
 func BenchmarkGeo(b *testing.B) {
