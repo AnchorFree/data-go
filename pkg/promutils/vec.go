@@ -15,7 +15,10 @@ func GetVectorLabels(vec prom.Collector, filter prom.Labels) []prom.Labels {
 	labelSets := []prom.Labels{}
 	for metric := range ch {
 		d := &dto.Metric{}
-		metric.Write(d)
+		err := metric.Write(d)
+		if err == nil {
+			return labelSets
+		}
 		ls := func() prom.Labels {
 			ret := prom.Labels{}
 			for _, labelPair := range d.GetLabel() {
