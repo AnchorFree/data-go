@@ -44,8 +44,8 @@ func TestGrpcRequests(t *testing.T) {
 
 	expect := `# HELP test_counter Test Description
 # TYPE test_counter counter
-test_counter{a="123"} 1.0
-test_counter{a="456"} 1.0
+test_counter{a="123"} 1
+test_counter{a="456"} 1
 `
 	rendered, err := Collect(testCounter)
 	assert.Equal(t, expect, rendered)
@@ -53,7 +53,7 @@ test_counter{a="456"} 1.0
 
 	expect = `# HELP test_gauge Test Description
 # TYPE test_gauge gauge
-test_gauge{a="777"} 99.0
+test_gauge{a="777"} 99
 `
 
 	rendered, err = Collect(testGauge)
@@ -62,20 +62,20 @@ test_gauge{a="777"} 99.0
 
 	expect = `# HELP test_histo Test Description
 # TYPE test_histo histogram
-test_histo_bucket{a="777",le="0.005"} 0.0
-test_histo_bucket{a="777",le="0.01"} 0.0
-test_histo_bucket{a="777",le="0.025"} 0.0
-test_histo_bucket{a="777",le="0.05"} 0.0
-test_histo_bucket{a="777",le="0.1"} 0.0
-test_histo_bucket{a="777",le="0.25"} 0.0
-test_histo_bucket{a="777",le="0.5"} 0.0
-test_histo_bucket{a="777",le="1.0"} 0.0
-test_histo_bucket{a="777",le="2.5"} 0.0
-test_histo_bucket{a="777",le="5.0"} 1.0
-test_histo_bucket{a="777",le="10.0"} 1.0
-test_histo_bucket{a="777",le="+Inf"} 1.0
-test_histo_sum{a="777"} 3.0
-test_histo_count{a="777"} 1.0
+test_histo_bucket{a="777",le="0.005"} 0
+test_histo_bucket{a="777",le="0.01"} 0
+test_histo_bucket{a="777",le="0.025"} 0
+test_histo_bucket{a="777",le="0.05"} 0
+test_histo_bucket{a="777",le="0.1"} 0
+test_histo_bucket{a="777",le="0.25"} 0
+test_histo_bucket{a="777",le="0.5"} 0
+test_histo_bucket{a="777",le="1"} 0
+test_histo_bucket{a="777",le="2.5"} 0
+test_histo_bucket{a="777",le="5"} 1
+test_histo_bucket{a="777",le="10"} 1
+test_histo_bucket{a="777",le="+Inf"} 1
+test_histo_sum{a="777"} 3
+test_histo_count{a="777"} 1
 `
 
 	rendered, err = Collect(testHisto)
@@ -84,27 +84,27 @@ test_histo_count{a="777"} 1.0
 
 	expect = `# HELP test_counter Test Description
 # TYPE test_counter counter
-test_counter{a="123"} 1.0
-test_counter{a="456"} 1.0
+test_counter{a="123"} 1
+test_counter{a="456"} 1
 # HELP test_gauge Test Description
 # TYPE test_gauge gauge
-test_gauge{a="777"} 99.0
+test_gauge{a="777"} 99
 # HELP test_histo Test Description
 # TYPE test_histo histogram
-test_histo_bucket{a="777",le="0.005"} 0.0
-test_histo_bucket{a="777",le="0.01"} 0.0
-test_histo_bucket{a="777",le="0.025"} 0.0
-test_histo_bucket{a="777",le="0.05"} 0.0
-test_histo_bucket{a="777",le="0.1"} 0.0
-test_histo_bucket{a="777",le="0.25"} 0.0
-test_histo_bucket{a="777",le="0.5"} 0.0
-test_histo_bucket{a="777",le="1.0"} 0.0
-test_histo_bucket{a="777",le="2.5"} 0.0
-test_histo_bucket{a="777",le="5.0"} 1.0
-test_histo_bucket{a="777",le="10.0"} 1.0
-test_histo_bucket{a="777",le="+Inf"} 1.0
-test_histo_sum{a="777"} 3.0
-test_histo_count{a="777"} 1.0
+test_histo_bucket{a="777",le="0.005"} 0
+test_histo_bucket{a="777",le="0.01"} 0
+test_histo_bucket{a="777",le="0.025"} 0
+test_histo_bucket{a="777",le="0.05"} 0
+test_histo_bucket{a="777",le="0.1"} 0
+test_histo_bucket{a="777",le="0.25"} 0
+test_histo_bucket{a="777",le="0.5"} 0
+test_histo_bucket{a="777",le="1"} 0
+test_histo_bucket{a="777",le="2.5"} 0
+test_histo_bucket{a="777",le="5"} 1
+test_histo_bucket{a="777",le="10"} 1
+test_histo_bucket{a="777",le="+Inf"} 1
+test_histo_sum{a="777"} 3
+test_histo_count{a="777"} 1
 `
 	rendered, err = Gather(r)
 	assert.Equal(t, expect, rendered)
