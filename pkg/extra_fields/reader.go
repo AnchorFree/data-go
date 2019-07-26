@@ -3,19 +3,19 @@ package extra_fields
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/anchorfree/data-go/pkg/geo"
-	"github.com/anchorfree/data-go/pkg/line_reader"
-	"github.com/anchorfree/data-go/pkg/logger"
-	geoip2 "github.com/oschwald/geoip2-golang"
-	//"github.com/rjeczalik/notify"
-	"github.com/fsnotify/fsnotify"
 	"net/http"
 	"path/filepath"
 	"sync"
 	"time"
-)
 
-type IFunc func() interface{}
+	"github.com/fsnotify/fsnotify"
+	geoip2 "github.com/oschwald/geoip2-golang"
+
+	"github.com/anchorfree/data-go/pkg/event"
+	"github.com/anchorfree/data-go/pkg/geo"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
+)
 
 var (
 	cityDB     *geoip2.Reader
@@ -128,6 +128,7 @@ func Init(geoip2CityPath string, geoip2IspPath string, gSet *geo.Geo) {
 	}
 }
 
+// Deprecated: use ExtraFieldsEventReader instead
 type ExtraFieldsReader struct {
 	line_reader.I
 	reader         line_reader.I
@@ -136,6 +137,7 @@ type ExtraFieldsReader struct {
 	extraFieldFunc map[string]func() interface{}
 }
 
+// Deprecated: use NewExtraFieldsEventReader instead
 func NewExtraFieldsReader(reader line_reader.I, req *http.Request) *ExtraFieldsReader {
 	return &ExtraFieldsReader{
 		reader:         reader,
@@ -145,21 +147,7 @@ func NewExtraFieldsReader(reader line_reader.I, req *http.Request) *ExtraFieldsR
 	}
 }
 
-func AppendJsonExtraFields(line []byte, extra []byte) []byte {
-	if len(line) == 0 {
-		return extra
-	}
-	// we don't need to merge empty extra fileds
-	if 0 == len(extra) || bytes.Equal(extra, []byte("{}")) {
-		return line
-	}
-	// could not find closing breaket, broken json
-	if bytes.LastIndex(line, []byte("}")) == -1 {
-		return line
-	}
-	return bytes.Join([][]byte{(line)[:bytes.LastIndex(line, []byte("}"))], extra[1:]}, []byte(","))
-}
-
+// Deprecated: use EventReader.With() instead
 func (r *ExtraFieldsReader) With(extra map[string]interface{}) *ExtraFieldsReader {
 	extraJson, err := json.Marshal(extra)
 	if err != nil {
@@ -170,6 +158,7 @@ func (r *ExtraFieldsReader) With(extra map[string]interface{}) *ExtraFieldsReade
 	return r
 }
 
+// Deprecated: use EventReader.WithFuncUint64() instead
 func (r *ExtraFieldsReader) WithFuncUint64(key string, f func() uint64) *ExtraFieldsReader {
 	r.WithFunc(key, func() interface{} {
 		return interface{}(f())
@@ -177,6 +166,7 @@ func (r *ExtraFieldsReader) WithFuncUint64(key string, f func() uint64) *ExtraFi
 	return r
 }
 
+// Deprecated: use EventReader.WithFunc() instead
 func (r *ExtraFieldsReader) WithFunc(key string, f func() interface{}) *ExtraFieldsReader {
 	r.extraFieldFunc[key] = f
 	return r
@@ -194,6 +184,7 @@ func (r *ExtraFieldsReader) renderExtraFieldsFunc() []byte {
 	return renderedExtraFields
 }
 
+// Deprecated: use EventReader.ReadEvent() instead
 func (r *ExtraFieldsReader) ReadLine() (line []byte, offset uint64, err error) {
 	line, offset, err = r.reader.ReadLine()
 
