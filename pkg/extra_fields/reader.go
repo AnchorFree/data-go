@@ -1,7 +1,6 @@
 package extra_fields
 
 import (
-	"bytes"
 	"encoding/json"
 	"net/http"
 	"path/filepath"
@@ -11,7 +10,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 	geoip2 "github.com/oschwald/geoip2-golang"
 
-	"github.com/anchorfree/data-go/pkg/event"
 	"github.com/anchorfree/data-go/pkg/geo"
 	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"

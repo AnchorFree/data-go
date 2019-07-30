@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.12.4 AS builder
+FROM golang:1.12.7 AS builder
 
 # Enable support of go modules by default
 ENV GO111MODULE on

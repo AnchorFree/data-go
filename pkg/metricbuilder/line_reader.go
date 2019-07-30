@@ -23,7 +23,6 @@ func NewReader(lr line_reader.I, topic string) *Reader {
 // Deprecated: use EventReader.ReadLine() instead
 func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
 	line, offset, err = r.reader.ReadLine()
-	const maxReplacements = 1
 	updateMetric(
 		appendTopicToMessage(line, r.topic),
 		r.topic,

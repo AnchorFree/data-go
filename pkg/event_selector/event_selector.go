@@ -1,10 +1,9 @@
 package event_selector
 
 import (
-	"io"
 	"sync"
 
-	"github.com/anchorfree/data-go/pkg/event"
+	"github.com/valyala/fastjson"
 )
 
 type EventSelector struct {

@@ -23,10 +23,12 @@ func NewEventReader(eventReader event.Reader, w io.Writer) *EventReader {
 
 func (er *EventReader) SetPrefix(prefix string) *EventReader {
 	er.lineReader.Prefix = prefix
+	return er
 }
 
 func (er *EventReader) SetSuffix(suffix string) *EventReader {
 	er.lineReader.Suffix = suffix
+	return er
 }
 
 func (er *EventReader) ReadEvent() *event.Event {

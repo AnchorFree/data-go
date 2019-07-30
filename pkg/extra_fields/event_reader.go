@@ -1,6 +1,9 @@
 package extra_fields
 
 import (
+	"net/http"
+	"encoding/json"
+
 	"github.com/anchorfree/data-go/pkg/event"
 )
 
@@ -39,9 +42,9 @@ func (er *EventReader) ReadEvent() *event.Event {
 	event := er.eventReader.ReadEvent()
 
 	fields := new(ExtraFields)
-	fields.GeoOrigin(r.request)
-	fields.CloudFront = IsCloudfront(r.request)
-	fields.Host = GetNginxHostname(r.request)
+	fields.GeoOrigin(er.lineReader.request)
+	fields.CloudFront = IsCloudfront(er.lineReader.request)
+	fields.Host = GetNginxHostname(er.lineReader.request)
 
 	extra, marshalErr := json.Marshal(fields)
 	if marshalErr != nil {

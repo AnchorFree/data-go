@@ -14,7 +14,7 @@ var _ event.Reader = (*EventReader)(nil)
 func NewEventReader(eventReader event.Reader) *EventReader {
 	return &EventReader{
 		eventReader: eventReader,
-		lineReader:  NewReader(nil, nil),
+		lineReader:  NewReader(nil, ""),
 	}
 }
 

@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/anchorfree/data-go/pkg/clients/client"
-	"github.com/anchorfree/data-go/pkg/line_reader"
-	"github.com/anchorfree/data-go/pkg/logger"
+	"strings"
+	"time"
+
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/valyala/fasthttp"
-	"strings"
-	"time"
+
+	"github.com/anchorfree/data-go/pkg/clients/client"
+	"github.com/anchorfree/data-go/pkg/event"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 )
 
 type Props struct {
@@ -25,6 +28,8 @@ type Client struct {
 	Config Props
 	Url    string
 }
+
+var _ client.I = (*Client)(nil)
 
 var DefaultConfig Props = Props{
 	RequestTimeout: 5 * time.Second,
@@ -45,6 +50,7 @@ func NewClient(url string, config interface{}, prom *prometheus.Registry) *Clien
 	return c
 }
 
+// Deprecated: use SendEvent instead
 func (c *Client) SendMessage(topic string, message []byte) error {
 	var err error
 
@@ -70,6 +76,7 @@ func (c *Client) SendMessage(topic string, message []byte) error {
 	return err
 }
 
+// Deprecated: use SendEvents instead
 func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	confirmedCnt = 0
 	filteredCnt = 0
@@ -96,6 +103,60 @@ func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uin
 	}
 	logger.Get().Debugf("Error SendMessages: %s", err)
 	return confirmedCnt, lastConfirmedOffset, filteredCnt, lorErr
+}
+
+func (c *Client) SendEvent(eventEntry *event.Event) error {
+	var err error
+
+	fullUrl := fmt.Sprintf("%s/topics/%s/messages", strings.Trim(c.Url, "/ "), strings.Trim(eventEntry.Topic, "/ "))
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(fullUrl)
+	req.Header.SetMethod("POST")
+	req.Header.SetContentType("text/plain")
+	req.SetBody(eventEntry.Message)
+
+	resp := fasthttp.AcquireResponse()
+	err = c.client.DoTimeout(req, resp, c.Config.RequestTimeout)
+
+	if resp != nil {
+		if resp.StatusCode() > 299 {
+			logger.Get().Debugf("Kafka proxy request status: %s", resp.StatusCode())
+		}
+	}
+	if err != nil {
+		logger.Get().Debugf("Kafka proxy request error: %s", err)
+	}
+
+	return err
+}
+
+func (c *Client) SendEvents(eventReader event.Reader) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+	confirmedCnt = 0
+	filteredCnt = 0
+	var erErr error
+
+	for {
+		eventEntry := eventReader.ReadEvent()
+		if eventEntry.Message != nil && len(eventEntry.Message) > 0 {
+			filteredEvent, filtered := c.FilterTopicEvent(eventEntry)
+			if filtered {
+				filteredCnt++
+			}
+			err = c.SendEvent(filteredEvent)
+			if err != nil {
+				logger.Get().Debugf("Could not send a message: %s", err)
+				return confirmedCnt, filteredEvent.Offset, filteredCnt, err
+			}
+			confirmedCnt++
+			lastConfirmedOffset = filteredEvent.Offset
+		}
+		if eventEntry.Error != nil {
+			erErr = eventEntry.Error
+			break
+		}
+	}
+	logger.Get().Debugf("Error SendMessages: %s", err)
+	return confirmedCnt, lastConfirmedOffset, filteredCnt, erErr
 }
 
 func (c *Client) ListTopics() ([]string, error) {
