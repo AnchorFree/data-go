@@ -2,18 +2,19 @@ package kafka_proxy
 
 import (
 	"errors"
-	"github.com/anchorfree/data-go/pkg/clients/client"
-	"github.com/anchorfree/data-go/pkg/clients/grpc_client"
-	"github.com/anchorfree/data-go/pkg/clients/http_client"
-	//"github.com/anchorfree/data-go/pkg/config"
-	"github.com/anchorfree/data-go/pkg/line_reader"
-	"github.com/anchorfree/data-go/pkg/logger"
+	"time"
+
 	"github.com/cenk/backoff"
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
 	circuit "github.com/rubyist/circuitbreaker"
-	//"strconv"
-	"time"
+
+	"github.com/anchorfree/data-go/pkg/clients/client"
+	"github.com/anchorfree/data-go/pkg/clients/grpc_client"
+	"github.com/anchorfree/data-go/pkg/clients/http_client"
+	"github.com/anchorfree/data-go/pkg/event"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 )
 
 //import context "golang.org/x/net/context"
@@ -127,11 +128,29 @@ func (kp *KafkaProxy) IsTopicValid(topic string) bool {
 	return false
 }
 
+// Deprecated: use SendEvents instead
 func (kp *KafkaProxy) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, filteredCnt uint64, err error) {
 	var lastConfirmedOffset uint64
 	if kp.breaker.Ready() {
 		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendMessages(topic, lor)
 		logger.Get().Debugf("Topic: %s, LastConfirmedOffset: %d", topic, lastConfirmedOffset)
+		if err != nil {
+			logger.Get().Debugf("Kafka proxy SendMessages error: %s", err)
+			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times
+		}
+		kp.breaker.Success()
+	} else {
+		err = errors.New("Circuit breaker open")
+		logger.Get().Debug("Making no kafka proxy request; CircuitBreaker is open.")
+	}
+	return confirmedCnt, filteredCnt, err
+}
+
+func (kp *KafkaProxy) SendEvents(eventReader event.Reader) (confirmedCnt uint64, filteredCnt uint64, err error) {
+	var lastConfirmedOffset uint64
+	if kp.breaker.Ready() {
+		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendEvents(eventReader)
+		logger.Get().Debugf("LastConfirmedOffset: %d", lastConfirmedOffset)
 		if err != nil {
 			logger.Get().Debugf("Kafka proxy SendMessages error: %s", err)
 			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times

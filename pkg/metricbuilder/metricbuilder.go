@@ -7,11 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/anchorfree/data-go/pkg/line_reader"
-	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/anchorfree/data-go/pkg/utils"
 	"github.com/buger/jsonparser"
 	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/utils"
 )
 
 type Props struct {
@@ -238,30 +238,7 @@ func ResetMetricsLRU() {
 	metricsLRU = map[string]metric{}
 }
 
-type Reader struct {
-	line_reader.I
-	reader line_reader.I
-	topic  string
-}
-
-func NewReader(lr line_reader.I, topic string) *Reader {
-	return &Reader{
-		reader: lr,
-		topic:  topic,
-	}
-}
-
 func appendTopicToMessage(line []byte, topic string) []byte {
 	const maxReplacements = 1
 	return bytes.Replace(line, []byte("{"), []byte(`{"topic":"`+topic+`",`), maxReplacements)
-}
-
-func (r *Reader) ReadLine() (line []byte, offset uint64, err error) {
-	line, offset, err = r.reader.ReadLine()
-	const maxReplacements = 1
-	updateMetric(
-		appendTopicToMessage(line, r.topic),
-		r.topic,
-	)
-	return line, offset, err
 }

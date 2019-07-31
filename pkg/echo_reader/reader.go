@@ -2,8 +2,9 @@ package echo_reader
 
 import (
 	"fmt"
-	"github.com/anchorfree/data-go/pkg/line_reader"
 	"io"
+
+	"github.com/anchorfree/data-go/pkg/line_reader"
 )
 
 type EchoReader struct {

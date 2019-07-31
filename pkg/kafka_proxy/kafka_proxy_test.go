@@ -2,15 +2,19 @@ package kafka_proxy
 
 import (
 	"bytes"
-	"github.com/anchorfree/data-go/pkg/line_offset_reader"
-	"github.com/anchorfree/data-go/pkg/line_reader"
-	"github.com/anchorfree/data-go/pkg/testutils"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"io"
 	"sort"
 	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
+	"github.com/anchorfree/data-go/pkg/clients/client"
+	"github.com/anchorfree/data-go/pkg/event"
+	"github.com/anchorfree/data-go/pkg/line_offset_reader"
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/testutils"
 )
 
 //Mock the kafka_proxy transport client
@@ -18,21 +22,32 @@ type MockedClient struct {
 	mock.Mock
 }
 
+var _ client.I = (*MockedClient)(nil)
+
 func (m *MockedClient) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	args := m.Called(topic, lor)
 	return args.Get(0).(uint64), args.Get(1).(uint64), args.Get(2).(uint64), args.Error(3)
 }
+
+func (m *MockedClient) SendEvents(eventReader event.Reader) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+	args := m.Called(eventReader)
+	return args.Get(0).(uint64), args.Get(1).(uint64), args.Get(2).(uint64), args.Error(3)
+}
+
 func (m *MockedClient) FilterTopicMessage(topic string, message []byte) (string, []byte, bool) {
 	args := m.Called(topic, message)
 	return args.String(0), args.Get(1).([]byte), args.Bool(2)
 }
+
 func (m *MockedClient) SetValidateJsonTopics(topics map[string]bool) {
 	m.Called(topics)
 }
+
 func (m *MockedClient) GetValidateJsonTopics() map[string]bool {
 	args := m.Called()
 	return args.Get(0).(map[string]bool)
 }
+
 func (m *MockedClient) ListTopics() ([]string, error) {
 	args := m.Called()
 	return args.Get(0).([]string), args.Error(1)

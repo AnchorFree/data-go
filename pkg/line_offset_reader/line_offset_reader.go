@@ -3,10 +3,13 @@ package line_offset_reader
 import (
 	"bufio"
 	"bytes"
-	"github.com/anchorfree/data-go/pkg/logger"
 	"io"
+
+	"github.com/anchorfree/data-go/pkg/line_reader"
+	"github.com/anchorfree/data-go/pkg/logger"
 )
 
+// Deprecated: use EventReader instead
 type LineOffsetReader struct {
 	io.Reader
 	nextOffset            uint64
@@ -18,7 +21,10 @@ type LineOffsetReader struct {
 	TrimMessages          bool
 }
 
-func NewReader(inp io.Reader) (r *LineOffsetReader) {
+var _ line_reader.I = (*LineOffsetReader)(nil)
+
+// Deprecated: use NewEventReader instead
+func NewReader(inp io.Reader) *LineOffsetReader {
 	return &LineOffsetReader{
 		nextOffset:            0,
 		bufReader:             bufio.NewReader(inp),
@@ -30,20 +36,16 @@ func NewReader(inp io.Reader) (r *LineOffsetReader) {
 	}
 }
 
+// Deprecated: use EventReader.BytesRead() instead
 func (r *LineOffsetReader) BytesRead() int64 {
 	return r.bytesRead
 }
+
+// Deprecated: use EventReader.LinesRead() instead
 func (r *LineOffsetReader) LinesRead() int64 {
 	return r.linesRead
 }
-func IsWhiteSpace(b byte) bool {
-	for _, w := range []byte("\n\t \u000A") {
-		if b == w {
-			return true
-		}
-	}
-	return false
-}
+
 func (r *LineOffsetReader) readJsonMessage() []byte {
 	var open, closed int
 	opened := false
@@ -79,12 +81,14 @@ func (r *LineOffsetReader) readJsonMessage() []byte {
 	r.leftoverBytes = []byte{}
 	return message
 }
+
 func (r *LineOffsetReader) readFullLine() []byte {
 	ret := r.leftoverBytes
 	r.leftoverBytes = []byte{}
 	return ret
 }
 
+// Deprecated: use EventReader.ReadEvent() instead
 func (r *LineOffsetReader) ReadLine() ([]byte, uint64, error) {
 	var (
 		err error
