@@ -1,8 +1,8 @@
 package echo_reader
 
 import (
-	"io"
 	"fmt"
+	"io"
 
 	"github.com/anchorfree/data-go/pkg/event"
 )
@@ -17,7 +17,7 @@ var _ event.Reader = (*EventReader)(nil)
 func NewEventReader(eventReader event.Reader, w io.Writer) *EventReader {
 	return &EventReader{
 		eventReader: eventReader,
-		lineReader: NewEchoReader(nil, w),
+		lineReader:  NewEchoReader(nil, w),
 	}
 }
 

@@ -14,7 +14,7 @@ RUN go mod download
 COPY . .
 
 # Run tests and build on success
-RUN go test ./...
+RUN go test -v ./...
 
 # Final container stage
 FROM alpine

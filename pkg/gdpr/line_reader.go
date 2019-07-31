@@ -3,7 +3,7 @@ package gdpr
 import (
 	"bytes"
 	"net"
-	
+
 	"github.com/anchorfree/data-go/pkg/geo"
 	"github.com/anchorfree/data-go/pkg/line_reader"
 )

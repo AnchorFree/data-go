@@ -1,8 +1,8 @@
 package extra_fields
 
 import (
-	"net/http"
 	"encoding/json"
+	"net/http"
 
 	"github.com/anchorfree/data-go/pkg/event"
 )
@@ -39,7 +39,7 @@ func (er *EventReader) WithFunc(key string, f func() interface{}) *EventReader {
 }
 
 func (er *EventReader) ReadEvent() *event.Event {
-	event := er.eventReader.ReadEvent()
+	eventEntry := er.eventReader.ReadEvent()
 
 	fields := new(ExtraFields)
 	fields.GeoOrigin(er.lineReader.request)
@@ -48,16 +48,16 @@ func (er *EventReader) ReadEvent() *event.Event {
 
 	extra, marshalErr := json.Marshal(fields)
 	if marshalErr != nil {
-		return event
+		return eventEntry
 	}
 
-	event.Message = AppendJsonExtraFields(event.Message, extra)
+	eventEntry.Message = AppendJsonExtraFields(eventEntry.Message, extra)
 	if len(er.lineReader.extraFields) > 0 {
-		event.Message = AppendJsonExtraFields(event.Message, er.lineReader.extraFields)
+		eventEntry.Message = AppendJsonExtraFields(eventEntry.Message, er.lineReader.extraFields)
 	}
 	if len(er.lineReader.extraFieldFunc) > 0 {
-		event.Message = AppendJsonExtraFields(event.Message, er.lineReader.renderExtraFieldsFunc())
+		eventEntry.Message = AppendJsonExtraFields(eventEntry.Message, er.lineReader.renderExtraFieldsFunc())
 	}
 
-	return event
+	return eventEntry
 }

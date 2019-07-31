@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/anchorfree/data-go/pkg/clients/client"
+	"github.com/anchorfree/data-go/pkg/event"
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/testutils"
-	"github.com/anchorfree/data-go/pkg/event"
 )
 
 //Mock the kafka_proxy transport client

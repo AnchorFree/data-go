@@ -1,8 +1,8 @@
 package gdpr
 
 import (
-	"github.com/anchorfree/data-go/pkg/geo"
 	"github.com/anchorfree/data-go/pkg/event"
+	"github.com/anchorfree/data-go/pkg/geo"
 )
 
 type EventReader struct {
@@ -20,7 +20,7 @@ func NewEventReader(er event.Reader, geoSet *geo.Geo) *EventReader {
 }
 
 func (er *EventReader) ReadEvent() *event.Event {
-	event := er.eventReader.ReadEvent()
-	event.Message = er.lineReader.ApplyGDPR(event.Message)
-	return event
+	eventEntry := er.eventReader.ReadEvent()
+	eventEntry.Message = er.lineReader.ApplyGDPR(eventEntry.Message)
+	return eventEntry
 }

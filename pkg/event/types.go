@@ -9,26 +9,28 @@ type Event struct {
 	Type    eventType
 }
 
-// Control type of message
-// could be either Json or Raw
-type eventType uint
+// Control type of message could be either Json or Raw
+// NOTE: Placeholder for future features
+// TODO: Add implementations using that field
+type eventType int
 
 const (
 	// Unknown Message Type
-	TypeUnknown eventType = 0
+	TypeUnknown eventType = iota
 
 	// Valid Json Message
-	TypeJson eventType = 1
+	TypeJson
 
 	// Non Json Message
-	TypeRaw eventType = 2
+	TypeRaw
 )
 
+// Event Reader interface
 type Reader interface {
-	//return Event
+	// return Event pointer
 	ReadEvent() *Event
 }
 
-func (e *Event) MessageString() string  {
+func (e *Event) MessageString() string {
 	return string(e.Message)
 }

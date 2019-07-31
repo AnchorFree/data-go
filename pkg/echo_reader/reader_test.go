@@ -37,5 +37,4 @@ func TestEchoReader(t *testing.T) {
 	echoed, _ := ioutil.ReadAll(pipeReader)
 	expected, _ := ioutil.ReadAll(buf)
 	assert.Equal(t, expected, echoed)
-
 }
