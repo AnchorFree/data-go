@@ -3,6 +3,7 @@ package kafka_proxy
 import (
 	"errors"
 	"time"
+	"io"
 
 	"github.com/cenk/backoff"
 	"github.com/imdario/mergo"
@@ -134,7 +135,7 @@ func (kp *KafkaProxy) SendMessages(topic string, lor line_reader.I) (confirmedCn
 	if kp.breaker.Ready() {
 		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendMessages(topic, lor)
 		logger.Get().Debugf("Topic: %s, LastConfirmedOffset: %d", topic, lastConfirmedOffset)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			logger.Get().Debugf("Kafka proxy SendMessages error: %s", err)
 			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times
 		}
@@ -151,7 +152,7 @@ func (kp *KafkaProxy) SendEvents(eventReader event.Reader) (confirmedCnt uint64,
 	if kp.breaker.Ready() {
 		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendEvents(eventReader)
 		logger.Get().Debugf("LastConfirmedOffset: %d", lastConfirmedOffset)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			logger.Get().Debugf("Kafka proxy SendMessages error: %s", err)
 			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times
 		}
