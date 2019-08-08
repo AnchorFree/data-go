@@ -70,7 +70,7 @@ func (er *EventReader) getUpstreamEvent() *event.Event {
 		return eventEntry
 	}
 
-	for _, es := range er.eventSelector.config.EventSelectors {
+	for _, es := range er.eventSelector.selectors.Selectors {
 		logger.Get().Debugf("Event selector: %#v", es)
 		if eventEntry.Topic == es.TargetTopic {
 			continue

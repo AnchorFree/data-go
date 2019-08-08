@@ -2,8 +2,8 @@ package kafka_proxy
 
 import (
 	"errors"
-	"time"
 	"io"
+	"time"
 
 	"github.com/cenk/backoff"
 	"github.com/imdario/mergo"
