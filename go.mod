@@ -10,6 +10,7 @@ require (
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
 	github.com/golang/protobuf v1.3.1
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
+	github.com/hashicorp/consul/api v1.1.0
 	github.com/imdario/mergo v0.3.7
 	github.com/klauspost/compress v1.5.0 // indirect
 	github.com/klauspost/cpuid v1.2.1 // indirect

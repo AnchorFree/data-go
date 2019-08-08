@@ -13,7 +13,7 @@ type ER struct {
 	raw      []byte
 	count    int
 	topic    string
-	esConfig *Config
+	esConfig *Selectors
 }
 
 var eventSelectorTest = []ER{
@@ -22,18 +22,18 @@ var eventSelectorTest = []ER{
 		raw:      []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count:    3,
 		topic:    "test",
-		esConfig: &Config{},
+		esConfig: &Selectors{},
 	},
 	{
 		name:  "single_event",
 		raw:   []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count: 4,
 		topic: "test",
-		esConfig: &Config{
-			EventSelectors: []SelectorConfig{
+		esConfig: &Selectors{
+			Selectors: []Selector{
 				{
 					TargetTopic: "jtest",
-					Selectors: map[string]string{
+					Matching: map[string]string{
 						"payload": "test1",
 					},
 				},
@@ -45,11 +45,11 @@ var eventSelectorTest = []ER{
 		raw:   []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count: 6,
 		topic: "test",
-		esConfig: &Config{
-			EventSelectors: []SelectorConfig{
+		esConfig: &Selectors{
+			Selectors: []Selector{
 				{
 					TargetTopic: "jtest",
-					Selectors: map[string]string{
+					Matching: map[string]string{
 						"event": "test",
 					},
 				},
@@ -61,11 +61,11 @@ var eventSelectorTest = []ER{
 		raw:   []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count: 3,
 		topic: "test",
-		esConfig: &Config{
-			EventSelectors: []SelectorConfig{
+		esConfig: &Selectors{
+			Selectors: []Selector{
 				{
 					TargetTopic: "test",
-					Selectors: map[string]string{
+					Matching: map[string]string{
 						"event": "test",
 					},
 				},
@@ -77,12 +77,12 @@ var eventSelectorTest = []ER{
 		raw:   []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count: 4,
 		topic: "test",
-		esConfig: &Config{
-			EventSelectors: []SelectorConfig{
+		esConfig: &Selectors{
+			Selectors: []Selector{
 				{
 					TargetTopic: "jtest",
-					Selectors: map[string]string{
-						"event": "test",
+					Matching: map[string]string{
+						"event":   "test",
 						"payload": "test2",
 					},
 				},
@@ -94,19 +94,19 @@ var eventSelectorTest = []ER{
 		raw:   []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count: 5,
 		topic: "test",
-		esConfig: &Config{
-			EventSelectors: []SelectorConfig{
+		esConfig: &Selectors{
+			Selectors: []Selector{
 				{
 					TargetTopic: "jtest",
-					Selectors: map[string]string{
-						"event": "test",
+					Matching: map[string]string{
+						"event":   "test",
 						"payload": "test2",
 					},
 				},
 				{
 					TargetTopic: "atest",
-					Selectors: map[string]string{
-						"event": "test",
+					Matching: map[string]string{
+						"event":   "test",
 						"payload": "test1",
 					},
 				},
@@ -118,8 +118,8 @@ var eventSelectorTest = []ER{
 func TestEventReader_ReadEvent(t *testing.T) {
 	for testIdx, test := range eventSelectorTest {
 		lor := line_offset_reader.NewEventReader(bytes.NewReader(test.raw), test.topic)
-		es := NewEventSelector()
-		es.ApplyConfig(test.esConfig)
+		es := NewEventSelector(Config{})
+		es.ApplySelectors(test.esConfig)
 		er := es.NewEventReader(lor)
 		count := 0
 		for {

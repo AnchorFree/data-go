@@ -6,17 +6,21 @@ import (
 )
 
 func TestEventSelector_ApplyConfig(t *testing.T) {
-	es := NewEventSelector()
-	config := &Config{
-		EventSelectors: []SelectorConfig{
+	config := Config{
+		ConsulAddress: "",
+		ConsulKeyPath: "",
+	}
+	es := NewEventSelector(config)
+	selectors := &Selectors{
+		Selectors: []Selector{
 			{
 				TargetTopic: "test",
-				Selectors: map[string]string{
+				Matching: map[string]string{
 					"test": "test",
 				},
 			},
 		},
 	}
-	es.ApplyConfig(config)
-	assert.Equal(t, *config, *es.config)
+	es.ApplySelectors(selectors)
+	assert.Equal(t, *selectors, *es.selectors)
 }
