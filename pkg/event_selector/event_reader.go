@@ -66,7 +66,7 @@ func (er *EventReader) getUpstreamEvent() *event.Event {
 
 	message, err := fastjson.Parse(eventEntry.MessageString())
 	if err != nil {
-		logger.Get().Errorf("json parsing error: %#v", err)
+		logger.Get().Debugf("json parsing error: %#v", err)
 		return eventEntry
 	}
 
