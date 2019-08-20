@@ -153,7 +153,7 @@ func (kp *KafkaProxy) SendEvents(eventReader event.Reader) (confirmedCnt uint64,
 		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendEvents(eventReader)
 		logger.Get().Debugf("LastConfirmedOffset: %d", lastConfirmedOffset)
 		if err != nil && err != io.EOF {
-			logger.Get().Debugf("Kafka proxy SendMessages error: %s", err)
+			logger.Get().Debugf("Kafka proxy SendEvents error: %s", err)
 			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times
 		}
 		kp.breaker.Success()
@@ -161,6 +161,7 @@ func (kp *KafkaProxy) SendEvents(eventReader event.Reader) (confirmedCnt uint64,
 		err = errors.New("Circuit breaker open")
 		logger.Get().Debug("Making no kafka proxy request; CircuitBreaker is open.")
 	}
+	logger.Get().Debugf("Got error to return: %v", err)
 	return confirmedCnt, filteredCnt, err
 }
 

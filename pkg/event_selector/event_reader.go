@@ -30,15 +30,15 @@ func (er *EventReader) ReadEvent() *event.Event {
 	switch er.returnSelected {
 	case true:
 		eventEntry = er.getSelectedEvent()
-		logger.Get().Debugf("Got event from selected: %#v", eventEntry)
+		logger.Get().Debugf("Got event from selected: %s", eventEntry)
 	case false:
-		logger.Get().Debugf("Getting event from upstream: %#v", eventEntry)
 		eventEntry = er.getUpstreamEvent()
+		logger.Get().Debugf("Got event from upstream: %s", eventEntry)
 		if eventEntry.Error != nil && len(er.selectedEvents) > 0 {
 			er.upstreamErr = eventEntry.Error
 			er.returnSelected = true
 			eventEntry.Error = nil
-			logger.Get().Debugf("Upstream event with error, return from selected: %#v", eventEntry)
+			logger.Get().Debugf("Got error from upstream, return from selected: %s", eventEntry)
 		}
 	}
 	return eventEntry
@@ -49,11 +49,11 @@ func (er *EventReader) getSelectedEvent() *event.Event {
 	switch selectedLength := len(er.selectedEvents); {
 	case selectedLength > 1:
 		eventEntry, er.selectedEvents = er.selectedEvents[0], er.selectedEvents[1:]
-		logger.Get().Debugf("Pop event from selected: %#v, left: %d", eventEntry, len(er.selectedEvents))
+		logger.Get().Debugf("Pop event from selected: %s, left: %d", eventEntry, len(er.selectedEvents))
 	case selectedLength == 1:
 		eventEntry, er.selectedEvents = er.selectedEvents[0], er.selectedEvents[1:]
 		eventEntry.Error = er.upstreamErr
-		logger.Get().Debugf("Pop event from selected and fill error with upstream error: %#v, left: %d", eventEntry, len(er.selectedEvents))
+		logger.Get().Debugf("Pop event from selected and fill error with upstream error: %s, left: %d", eventEntry, len(er.selectedEvents))
 	default:
 		eventEntry = &event.Event{Error: er.upstreamErr}
 		logger.Get().Debugf("Return empty event with error: %#v", eventEntry)
