@@ -41,6 +41,22 @@ var eventSelectorTest = []ER{
 		},
 	},
 	{
+		name:  "nested_field_event",
+		raw:   []byte("{\"event\":\"test\",\"payload\":{\"action_name\":\"event\"}}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
+		count: 4,
+		topic: "test",
+		esConfig: &Selectors{
+			Selectors: []Selector{
+				{
+					TargetTopic: "jtest",
+					Matching: map[string]string{
+						"payload.action_name": "event",
+					},
+				},
+			},
+		},
+	},
+	{
 		name:  "all_events",
 		raw:   []byte("{\"event\":\"test\",\"payload\":\"test1\"}\n{\"event\":\"test\",\"payload\":\"test2\"}\n{\"event\":\"test\",\"payload\":\"test\"}"),
 		count: 6,

@@ -177,7 +177,6 @@ func (c *Client) SendEvents(eventReader event.Reader) (confirmedCnt uint64, last
 				}
 			}
 			if eventEntry.Error != nil {
-				err = eventEntry.Error
 				break
 			}
 		}
