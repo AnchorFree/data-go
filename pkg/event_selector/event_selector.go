@@ -1,7 +1,7 @@
 package event_selector
 
 import (
-	"encoding/json"
+	"gopkg.in/yaml.v2"
 	"sync"
 
 	"github.com/anchorfree/data-go/pkg/consul"
@@ -40,7 +40,7 @@ func (es *EventSelector) RunConfigWatcher() error {
 
 func (es *EventSelector) updateConfig(rawConfig []byte) error {
 	selectors := &Selectors{}
-	err := json.Unmarshal(rawConfig, selectors)
+	err := yaml.Unmarshal(rawConfig, selectors)
 	if err != nil {
 		return err
 	}

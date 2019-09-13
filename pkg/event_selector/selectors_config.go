@@ -1,10 +1,10 @@
 package event_selector
 
 type Selectors struct {
-	Selectors []Selector `json:"selectors"`
+	Selectors []Selector `yaml:"selectors"`
 }
 
 type Selector struct {
-	TargetTopic string            `json:"target_topic"`
-	Matching    map[string]string `json:"matching"`
+	TargetTopic string            `yaml:"target_topic"`
+	Matching    map[string]string `yaml:"matching"`
 }
