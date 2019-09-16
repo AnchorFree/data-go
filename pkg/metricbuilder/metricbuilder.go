@@ -47,7 +47,7 @@ var metricConfigs map[string]MetricProps
 var LRUInterval = 1 * time.Minute
 
 //modify to read from configuration file
-var LRUTimeBucket float64 = 300
+var LRUTimeBucket float64 = 86400
 
 var (
 	metricsVec = make(map[string]*prometheus.CounterVec)
