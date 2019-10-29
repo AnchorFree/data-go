@@ -2,7 +2,6 @@ package kafka_proxy
 
 import (
 	"bytes"
-	"io"
 	"sort"
 	"testing"
 
@@ -11,10 +10,9 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/anchorfree/data-go/pkg/clients/client"
-	"github.com/anchorfree/data-go/pkg/event"
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
-	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/testutils"
+	"github.com/anchorfree/data-go/pkg/types"
 )
 
 //Mock the kafka_proxy transport client
@@ -24,13 +22,8 @@ type MockedClient struct {
 
 var _ client.I = (*MockedClient)(nil)
 
-func (m *MockedClient) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
-	args := m.Called(topic, lor)
-	return args.Get(0).(uint64), args.Get(1).(uint64), args.Get(2).(uint64), args.Error(3)
-}
-
-func (m *MockedClient) SendEvents(eventReader event.Reader) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
-	args := m.Called(eventReader)
+func (m *MockedClient) SendEvents(eventIterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+	args := m.Called(eventIterator)
 	return args.Get(0).(uint64), args.Get(1).(uint64), args.Get(2).(uint64), args.Error(3)
 }
 
@@ -53,10 +46,10 @@ func (m *MockedClient) ListTopics() ([]string, error) {
 	return args.Get(0).([]string), args.Error(1)
 }
 
-func TestSendMessages(t *testing.T) {
+func TestKafkaProxy_SendEvents(t *testing.T) {
 	topic := "test"
 	message := []byte("This is a test string\nwith an extra tailing line")
-	lor := line_offset_reader.NewReader(bytes.NewReader(message))
+	lor := line_offset_reader.NewIterator(bytes.NewReader(message), topic)
 
 	prom := prometheus.NewRegistry()
 	cl := &MockedClient{}
@@ -64,20 +57,20 @@ func TestSendMessages(t *testing.T) {
 	offsets := testutils.GetLineOffsets(t, string(message))
 	expectedOffset := offsets[len(offsets)-1]
 	expectedFilteredLines := uint64(1)
-	cl.On("SendMessages", "test", lor).Return(expectedCount, expectedOffset, expectedFilteredLines, io.EOF)
+	cl.On("SendEvents", lor).Return(expectedCount, expectedOffset, expectedFilteredLines, nil)
 	cl.On("SetValidateJsonTopics", mock.Anything).Maybe()
 	cl.On("ListTopics").Return([]string{topic}, nil).Maybe()
 	proxy := NewKafkaProxy(cl, DefaultConfig, prom)
-	confirmedCnt, filteredCnt, err := proxy.SendMessages(topic, lor)
-	if err != nil && err != io.EOF {
-		t.Errorf("KafkaProxy returned an error and it is not EOF: %s", err)
+	confirmedCnt, filteredCnt, err := proxy.SendEvents(lor)
+	if err != nil {
+		t.Errorf("KafkaProxy returned an error: %s", err)
 	}
 	cl.AssertExpectations(t)
 	assert.Equal(t, expectedCount, confirmedCnt, "Wrong confirmed message count")
 	assert.Equal(t, expectedFilteredLines, filteredCnt, "Wrong filtered lines count")
 }
 
-func TestListTopics(t *testing.T) {
+func TestKafkaProxy_ListTopics(t *testing.T) {
 	topics := []string{"test", "one", "two", "last-topic"}
 	prom := prometheus.NewRegistry()
 	cl := &MockedClient{}
@@ -90,7 +83,7 @@ func TestListTopics(t *testing.T) {
 	assert.NoErrorf(t, err, "ListTopics returned error: %+v", err)
 }
 
-func TestKafkaProxyFiltersInitialization(t *testing.T) {
+func TestKafkaProxy_FiltersInitialization(t *testing.T) {
 	prom := prometheus.NewRegistry()
 	cfg := Props{
 		Url: "grpc://localhost:19043",
@@ -113,7 +106,7 @@ func TestKafkaProxyFiltersInitialization(t *testing.T) {
 	cl.AssertExpectations(t)
 }
 
-func TestKafkaProxyTopicListInitialization(t *testing.T) {
+func TestKafkaProxy_TopicListInitialization(t *testing.T) {
 	topic := "test"
 	prom := prometheus.NewRegistry()
 	cfg := Props{

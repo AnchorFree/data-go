@@ -67,13 +67,13 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 		"server_ts": serverTs,
 		"client_ts": clientTs,
 	}
-	lineReader := lor.NewReader(bytes.NewReader(raw))
-	efr := NewExtraFieldsReader(lineReader, req).With(extraFields)
+	lineReader := lor.NewIterator(bytes.NewReader(raw), topic)
+	efi := NewIterator(lineReader, req).With(extraFields)
 
-	for {
-		line, _, readerErr := efr.ReadLine()
+	for efi.Next() {
+		event := efi.At()
 		var rec EF
-		err := json.Unmarshal(line, &rec)
+		err := json.Unmarshal(event.Message, &rec)
 		assert.Nilf(t, err, "Could not Unmarshal json: %v", err)
 		assert.Equal(t, clientTs, rec.ClientTs, "client_ts field is not correct")
 		assert.Equal(t, cloudFront, rec.CloudFront, "cloudfront field is not correct")
@@ -88,10 +88,6 @@ func TestExtraFieldsFromHeaders(t *testing.T) {
 		assert.Equal(t, fromOrgName, rec.FromOrgName, "from_org_name field is not correct")
 		assert.Equal(t, host, rec.Host, "host field is not correct")
 		assert.Equal(t, serverTs, rec.ServerTs, "server_ts field is not correct")
-
-		if readerErr != nil {
-			break
-		}
 	}
 }
 
@@ -104,23 +100,18 @@ func TestExtraFieldsFromIspDb(t *testing.T) {
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
 	testIP := "1.128.0.0"
 	req.RemoteAddr = testIP
-	lineReader := lor.NewReader(bytes.NewReader(raw))
-	efr := NewExtraFieldsReader(lineReader, req)
-	for {
-		line, _, readerErr := efr.ReadLine()
+	lineReader := lor.NewIterator(bytes.NewReader(raw), topic)
+	efi := NewIterator(lineReader, req)
+	for efi.Next() {
+		event := efi.At()
 		var rec EF
-		err := json.Unmarshal(line, &rec)
+		err := json.Unmarshal(event.Message, &rec)
 		assert.Nilf(t, err, "Could not Unmarshal json: %v", err)
 		assert.Equal(t, "Telstra Pty Ltd", rec.FromAsDesc, "from_as_desc field is not correct")
 		assert.Equal(t, "1221", rec.FromAsn, "from_asn field is not correct")
 		assert.Equal(t, "Telstra Internet", rec.FromIsp, "from_isp field is not correct")
 		assert.Equal(t, "Telstra Internet", rec.FromOrgName, "from_org_name field is not correct")
-
-		if readerErr != nil {
-			break
-		}
 	}
-
 }
 
 func TestExtraFieldsFromCityDb(t *testing.T) {
@@ -132,54 +123,45 @@ func TestExtraFieldsFromCityDb(t *testing.T) {
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
 	testIP := "81.2.69.160"
 	req.RemoteAddr = testIP
-	lineReader := lor.NewReader(bytes.NewReader(raw))
-	efr := NewExtraFieldsReader(lineReader, req)
-	for {
-		line, _, readerErr := efr.ReadLine()
+	lineIter := lor.NewIterator(bytes.NewReader(raw), topic)
+	efi := NewIterator(lineIter, req)
+	for efi.Next() {
+		event := efi.At()
 		var rec EF
-		err := json.Unmarshal(line, &rec)
+		err := json.Unmarshal(event.Message, &rec)
 		assert.Nilf(t, err, "Could not Unmarshal json: %v", err)
 		assert.Equal(t, "London", rec.FromCity, "from_city field is not correct")
 		assert.Equal(t, "ENG", rec.FromRegion, "from_region field is not correct")
 		assert.Equal(t, "GB", rec.FromCountry, "from_country field is not correct")
 		assert.Equal(t, 51.5142, rec.FromLatitude, "from_latitude field is not correct")
 		assert.Equal(t, -0.0931, rec.FromLongitude, "from_longitude field is not correct")
-
-		if readerErr != nil {
-			break
-		}
 	}
-
 }
 
 func TestExtraFieldsReader_With(t *testing.T) {
 	topic := "test"
 	path := fmt.Sprintf("/ula?report_type=%s", topic)
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
-	lineReader := lor.NewReader(bytes.NewReader(raw))
+	lineIter := lor.NewIterator(bytes.NewReader(raw), topic)
 
-	efr := NewExtraFieldsReader(lineReader, req)
-	efr.With(map[string]interface{}{"override": "1"}).
+	efi := NewIterator(lineIter, req)
+	efi.With(map[string]interface{}{"override": "1"}).
 		With(map[string]interface{}{"override": 5}).
 		With(map[string]interface{}{"int": 2}).
 		With(map[string]interface{}{"string": "str"})
 
-	for {
-		line, _, rErr := efr.ReadLine()
-		t.Logf("%s\n", line)
+	for efi.Next() {
+		event := efi.At()
+		t.Logf("%s\n", event.Message)
 
 		var rec map[string]interface{}
-		err := json.Unmarshal(line, &rec)
+		err := json.Unmarshal(event.Message, &rec)
 		assert.Equal(t, err, nil, "failed to unmarshal json")
 
 		t.Logf("%#v\n", rec)
 		assert.Equal(t, rec["override"], float64(5), "field override is not correct")
 		assert.Equal(t, rec["int"], float64(2), "field int is not correct")
 		assert.Equal(t, rec["string"], "str", "field string is not correct")
-
-		if rErr != nil {
-			break
-		}
 	}
 }
 
@@ -197,27 +179,23 @@ func TestExtraFieldsReader_WithFuncUint64(t *testing.T) {
 	topic := "test"
 	path := fmt.Sprintf("/ula?report_type=%s", topic)
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
-	lineReader := lor.NewReader(bytes.NewReader(raw))
+	lineIter := lor.NewIterator(bytes.NewReader(raw), topic)
 
-	efr := NewExtraFieldsReader(lineReader, req)
-	efr.WithFuncUint64("uint64", fuint64)
+	efi := NewIterator(lineIter, req)
+	efi.WithFuncUint64("uint64", fuint64)
 
 	i := float64(0)
-	for {
-		line, _, rErr := efr.ReadLine()
-		t.Logf("%s\n", line)
+	for efi.Next() {
+		event := efi.At()
+		t.Logf("%s\n", event.Message)
 
 		var rec map[string]interface{}
-		err := json.Unmarshal(line, &rec)
+		err := json.Unmarshal(event.Message, &rec)
 		assert.Equal(t, err, nil, "failed to unmarshal json")
 
 		t.Logf("%#v\n", rec)
 		i++
 		assert.Equal(t, rec["uint64"], i, "field uint64 is not correct")
-
-		if rErr != nil {
-			break
-		}
 	}
 }
 
@@ -235,27 +213,23 @@ func TestExtraFieldsReader_WithFunc(t *testing.T) {
 	topic := "test"
 	path := fmt.Sprintf("/ula?report_type=%s", topic)
 	req := httptest.NewRequest("POST", path, bytes.NewReader([]byte("")))
-	lineReader := lor.NewReader(bytes.NewReader(raw))
+	lineIter := lor.NewIterator(bytes.NewReader(raw), topic)
 
-	efr := NewExtraFieldsReader(lineReader, req)
-	efr.WithFunc("uint64", f)
+	efi := NewIterator(lineIter, req)
+	efi.WithFunc("uint64", f)
 
 	i := float64(0)
-	for {
-		line, _, rErr := efr.ReadLine()
-		t.Logf("%s\n", line)
+	for efi.Next() {
+		event := efi.At()
+		t.Logf("%s\n", event.Message)
 
 		var rec map[string]interface{}
-		err := json.Unmarshal(line, &rec)
+		err := json.Unmarshal(event.Message, &rec)
 		assert.Equal(t, err, nil, "failed to unmarshal json")
 
 		t.Logf("%#v\n", rec)
 		i++
 		assert.Equal(t, rec["uint64"], i, "field uint64 is not correct")
-
-		if rErr != nil {
-			break
-		}
 	}
 }
 

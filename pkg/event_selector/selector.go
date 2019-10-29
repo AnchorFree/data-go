@@ -11,13 +11,13 @@ import (
 type EventSelector struct {
 	sync.RWMutex
 	selectors *Selectors
-	config *Config
+	config    *Config
 }
 
-func NewEventSelector(config Config) (*EventSelector) {
+func NewEventSelector(config Config) *EventSelector {
 	es := &EventSelector{
 		selectors: new(Selectors),
-		config: &config,
+		config:    &config,
 	}
 	return es
 }

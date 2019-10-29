@@ -12,9 +12,8 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/anchorfree/data-go/pkg/clients/client"
-	"github.com/anchorfree/data-go/pkg/event"
-	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/types"
 )
 
 type Props struct {
@@ -50,16 +49,15 @@ func NewClient(url string, config interface{}, prom *prometheus.Registry) *Clien
 	return c
 }
 
-// Deprecated: use SendEvent instead
-func (c *Client) SendMessage(topic string, message []byte) error {
+func (c *Client) SendEvent(event *types.Event) error {
 	var err error
 
-	fullUrl := fmt.Sprintf("%s/topics/%s/messages", strings.Trim(c.Url, "/ "), strings.Trim(topic, "/ "))
+	fullUrl := fmt.Sprintf("%s/topics/%s/messages", strings.Trim(c.Url, "/ "), strings.Trim(event.Topic, "/ "))
 	req := fasthttp.AcquireRequest()
 	req.SetRequestURI(fullUrl)
 	req.Header.SetMethod("POST")
 	req.Header.SetContentType("text/plain")
-	req.SetBody(message)
+	req.SetBody(event.Message)
 
 	resp := fasthttp.AcquireResponse()
 	err = c.client.DoTimeout(req, resp, c.Config.RequestTimeout)
@@ -76,69 +74,14 @@ func (c *Client) SendMessage(topic string, message []byte) error {
 	return err
 }
 
-// Deprecated: use SendEvents instead
-func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	confirmedCnt = 0
 	filteredCnt = 0
-	var lorErr error
 
-	for {
-		line, lastOffset, lorErr := lor.ReadLine()
-		if line != nil && len(line) > 0 {
-			filteredTopic, filteredMessage, filtered := c.FilterTopicMessage(topic, line)
-			if filtered {
-				filteredCnt++
-			}
-			err = c.SendMessage(filteredTopic, filteredMessage)
-			if err != nil {
-				logger.Get().Debugf("Could not send a message: %s", err)
-				return confirmedCnt, lastOffset, filteredCnt, err
-			}
-			confirmedCnt++
-			lastConfirmedOffset = lastOffset
-		}
-		if lorErr != nil {
-			break
-		}
-	}
-	logger.Get().Debugf("Error SendMessages: %s", err)
-	return confirmedCnt, lastConfirmedOffset, filteredCnt, lorErr
-}
-
-func (c *Client) SendEvent(eventEntry *event.Event) error {
-	var err error
-
-	fullUrl := fmt.Sprintf("%s/topics/%s/messages", strings.Trim(c.Url, "/ "), strings.Trim(eventEntry.Topic, "/ "))
-	req := fasthttp.AcquireRequest()
-	req.SetRequestURI(fullUrl)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("text/plain")
-	req.SetBody(eventEntry.Message)
-
-	resp := fasthttp.AcquireResponse()
-	err = c.client.DoTimeout(req, resp, c.Config.RequestTimeout)
-
-	if resp != nil {
-		if resp.StatusCode() > 299 {
-			logger.Get().Debugf("Kafka proxy request status: %s", resp.StatusCode())
-		}
-	}
-	if err != nil {
-		logger.Get().Debugf("Kafka proxy request error: %s", err)
-	}
-
-	return err
-}
-
-func (c *Client) SendEvents(eventReader event.Reader) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
-	confirmedCnt = 0
-	filteredCnt = 0
-	var erErr error
-
-	for {
-		eventEntry := eventReader.ReadEvent()
-		if eventEntry.Message != nil && len(eventEntry.Message) > 0 {
-			filteredEvent, filtered := c.FilterTopicEvent(eventEntry)
+	for iterator.Next() {
+		event := iterator.At()
+		if event.Message != nil && len(event.Message) > 0 {
+			filteredEvent, filtered := c.FilterTopicEvent(event)
 			if filtered {
 				filteredCnt++
 			}
@@ -150,13 +93,12 @@ func (c *Client) SendEvents(eventReader event.Reader) (confirmedCnt uint64, last
 			confirmedCnt++
 			lastConfirmedOffset = filteredEvent.Offset
 		}
-		if eventEntry.Error != nil {
-			erErr = eventEntry.Error
-			break
-		}
 	}
-	logger.Get().Debugf("Error SendMessages: %s", err)
-	return confirmedCnt, lastConfirmedOffset, filteredCnt, erErr
+	if iterator.Err() != nil {
+		logger.Get().Debugf("Client request error: %s", err)
+		err = types.NewErrClientRequest(iterator.Err().Error())
+	}
+	return confirmedCnt, lastConfirmedOffset, filteredCnt, err
 }
 
 func (c *Client) ListTopics() ([]string, error) {

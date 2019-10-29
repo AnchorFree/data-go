@@ -36,9 +36,9 @@ func TestHttpRequests(t *testing.T) {
 
 	prom := prometheus.NewRegistry()
 	cl := NewClient(ts.URL, Props{}, prom)
-	lor := line_offset_reader.NewReader(bytes.NewReader(message))
+	lor := line_offset_reader.NewIterator(bytes.NewReader(message), topic)
 	//confirmedCnt, lastConfirmedOffset, err := cl.SendMessages(topic, lor)
-	_, _, _, err := cl.SendMessages(topic, lor)
+	_, _, _, err := cl.SendEvents(lor)
 	if err != nil {
 		t.Errorf("KafkaProxy returned an error: %s", err)
 	}
@@ -98,8 +98,8 @@ func TestJsonFilter(t *testing.T) {
 	}
 	cl.SetValidateJsonTopics(validateJsonTopics)
 	for _, test := range jsonTests {
-		lor := line_offset_reader.NewReader(bytes.NewReader(test.message))
-		_, _, filteredCnt, err := cl.SendMessages(topic, lor)
+		lor := line_offset_reader.NewIterator(bytes.NewReader(test.message), topic)
+		_, _, filteredCnt, err := cl.SendEvents(lor)
 		if err != nil {
 			t.Errorf("Error sending messages: %s", err)
 		}

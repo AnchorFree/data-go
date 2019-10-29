@@ -6,14 +6,13 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/prometheus/client_golang/prometheus"
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 
-	pb "github.com/anchorfree/data-go/pkg/ambassador/pb"
+	"github.com/anchorfree/data-go/pkg/ambassador/pb"
 	"github.com/anchorfree/data-go/pkg/clients/client"
-	"github.com/anchorfree/data-go/pkg/event"
-	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/types"
 )
 
 type Props struct {
@@ -72,8 +71,7 @@ func NewClient(url string, config interface{}, prom *prometheus.Registry) *Clien
 	return c
 }
 
-// Deprecated: use SendEvents instead
-func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	stream, streamErr := c.client.Produce(context.Background())
 	cnt := 0
 	confirmedCnt = 0
@@ -101,68 +99,11 @@ func (c *Client) SendMessages(topic string, lor line_reader.I) (confirmedCnt uin
 				//logger.Get().Printf("Got confirmed offset: %d", lastConfirmedOffset)
 			}
 		}()
-		for {
+		for iterator.Next() {
 			cnt++
-			line, lastOffset, err := lor.ReadLine()
-			if line != nil && len(line) > 0 {
-				filteredTopic, filteredMessage, filtered := c.FilterTopicMessage(topic, line)
-				if filtered {
-					filteredCnt++
-				}
-				rq := pb.ProdRq{
-					Topic:        filteredTopic,
-					Message:      filteredMessage,
-					StreamOffset: lastOffset,
-				}
-				sendErr := stream.Send(&rq)
-				if sendErr != nil {
-					return confirmedCnt, lastConfirmedOffset, filteredCnt, sendErr
-				}
-			}
-			if err != nil {
-				break
-			}
-		}
-		stream.CloseSend()
-		<-waitc
-	}
-	logger.Get().Debugf("Finished streaming. Topic: %s, Lines: %d, confirmedLines: %d, LastConfirmedOffset: %d, err: %s", topic, cnt, confirmedCnt, lastConfirmedOffset, err)
-	return confirmedCnt, lastConfirmedOffset, filteredCnt, err
-}
-
-func (c *Client) SendEvents(eventReader event.Reader) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
-	stream, streamErr := c.client.Produce(context.Background())
-	cnt := 0
-	confirmedCnt = 0
-	filteredCnt = 0
-	if streamErr != nil {
-		logger.Get().Error("Could not create GRPC stream: %s", streamErr)
-		return confirmedCnt, lastConfirmedOffset, filteredCnt, streamErr
-	} else {
-		waitc := make(chan struct{})
-		go func() {
-			for {
-				srvResponse, err := stream.Recv()
-				if err == io.EOF {
-					close(waitc)
-					return
-				}
-				if err != nil {
-					close(waitc)
-					stream.CloseSend()
-					logger.Get().Errorf("Failed to receive GRPC server response: %v", err)
-					return
-				}
-				lastConfirmedOffset = srvResponse.StreamOffset
-				confirmedCnt++
-				//logger.Get().Printf("Got confirmed offset: %d", lastConfirmedOffset)
-			}
-		}()
-		for {
-			cnt++
-			eventEntry := eventReader.ReadEvent()
-			if eventEntry.Message != nil && len(eventEntry.Message) > 0 {
-				filteredEvent, filtered := c.FilterTopicEvent(eventEntry)
+			event := iterator.At()
+			if event.Message != nil && len(event.Message) > 0 {
+				filteredEvent, filtered := c.FilterTopicEvent(event)
 				if filtered {
 					filteredCnt++
 				}
@@ -171,14 +112,14 @@ func (c *Client) SendEvents(eventReader event.Reader) (confirmedCnt uint64, last
 					Message:      filteredEvent.Message,
 					StreamOffset: filteredEvent.Offset,
 				}
-				sendErr := stream.Send(&rq)
-				if sendErr != nil {
-					return confirmedCnt, lastConfirmedOffset, filteredCnt, sendErr
+				err := stream.Send(&rq)
+				if err != nil {
+					return confirmedCnt, lastConfirmedOffset, filteredCnt, err
 				}
 			}
-			if eventEntry.Error != nil {
-				break
-			}
+		}
+		if iterator.Err() != nil {
+			err = types.NewErrClientRequest(iterator.Err().Error())
 		}
 		stream.CloseSend()
 		<-waitc
