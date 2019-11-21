@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type I interface {
+type KafkaClient interface {
 	SendEvents(iterator types.EventIterator) (uint64, uint64, uint64, error)
 	FilterTopicMessage(string, []byte) (string, []byte, bool)
 	SetValidateJsonTopics(map[string]bool)

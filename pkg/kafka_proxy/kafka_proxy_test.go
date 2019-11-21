@@ -20,7 +20,7 @@ type MockedClient struct {
 	mock.Mock
 }
 
-var _ client.I = (*MockedClient)(nil)
+var _ client.KafkaClient = (*MockedClient)(nil)
 
 func (m *MockedClient) SendEvents(eventIterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	args := m.Called(eventIterator)
@@ -53,7 +53,7 @@ func TestKafkaProxy_SendEvents(t *testing.T) {
 
 	prom := prometheus.NewRegistry()
 	cl := &MockedClient{}
-	expectedCount := uint64(testutils.GetLineCount(string(message)))
+	expectedCount := uint64(testutils.GetLineCount(t, string(message)))
 	offsets := testutils.GetLineOffsets(t, string(message))
 	expectedOffset := offsets[len(offsets)-1]
 	expectedFilteredLines := uint64(1)

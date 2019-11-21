@@ -27,7 +27,7 @@ func TrimNewLine(s string) string {
 	return s
 }
 
-func GetLineCount(s string) int {
+func GetLineCount(t *testing.T, s string) int {
 	s = TrimNewLine(s)
 	lines := SplitString(s)
 	return len(lines)

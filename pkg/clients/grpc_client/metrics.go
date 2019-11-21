@@ -8,7 +8,7 @@ var (
 	grpcMetrics = grpc_prometheus.NewClientMetrics()
 )
 
-func (c *Client) RegisterMetrics() {
+func (c *ClientGRPC) RegisterMetrics() {
 	// Register standard metrics and customized metrics to registry.
 	c.Prom.MustRegister(grpcMetrics)
 }

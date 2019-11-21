@@ -14,14 +14,11 @@ type Event struct {
 type eventType int
 
 const (
-	// Unknown Message Type
-	TypeUnknown eventType = iota
+	// Non Json Message
+	EventRaw eventType = iota
 
 	// Valid Json Message
 	TypeJson
-
-	// Non Json Message
-	TypeRaw
 )
 
 func (e *Event) MessageString() string {

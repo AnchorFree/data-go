@@ -88,7 +88,7 @@ func (ei *EventIterator) Next() bool {
 		Topic:   ei.topic,
 		Message: buf,
 		Offset:  offset,
-		Type:    types.TypeUnknown,
+		Type:    types.EventRaw,
 	}
 
 	if err != nil {

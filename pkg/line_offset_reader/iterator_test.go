@@ -99,7 +99,7 @@ func TestLineSplittingAndOffsets(t *testing.T) {
 			assert.Falsef(t, len(event.Message) != lengths[n], "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", test_index, test.name, n, len(event.Message), lengths[n])
 			n++
 		}
-		assert.Falsef(t, n != testutils.GetLineCount(test.raw), "Line count doesn't match in test #%d \"%s\" (%d vs %d)", test_index, test.name, n, testutils.GetLineCount(test.raw))
+		assert.Falsef(t, n != testutils.GetLineCount(t, test.raw), "Line count doesn't match in test #%d \"%s\" (%d vs %d)", test_index, test.name, n, testutils.GetLineCount(t, test.raw))
 	}
 }
 
@@ -119,7 +119,7 @@ func TestInterruptedLineReader(t *testing.T) {
 			n++
 		}
 		assert.Falsef(t, uint64(errorAtOffset) < event.Offset && (lor.Err() == nil),
-			"Error reader didn't trigger an error in test #%d \"%s\" (%d vs %d)", test_index, test.name, n, testutils.GetLineCount(test.raw))
+			"Error reader didn't trigger an error in test #%d \"%s\" (%d vs %d)", test_index, test.name, n, testutils.GetLineCount(t, test.raw))
 	}
 }
 
