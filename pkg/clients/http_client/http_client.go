@@ -21,21 +21,21 @@ type Props struct {
 	RequestTimeout time.Duration
 }
 
-type Client struct {
+type HttpClient struct {
 	client.T
 	client *fasthttp.Client
 	Config Props
 	Url    string
 }
 
-var _ client.I = (*Client)(nil)
+var _ client.ClientTransport = (*HttpClient)(nil)
 
 var DefaultConfig Props = Props{
 	RequestTimeout: 5 * time.Second,
 }
 
-func NewClient(url string, config interface{}, prom *prometheus.Registry) *Client {
-	c := &Client{}
+func NewClient(url string, config interface{}, prom *prometheus.Registry) *HttpClient {
+	c := &HttpClient{}
 	c.Url = url
 	c.Prom = prom
 	c.Config = config.(Props)
@@ -49,7 +49,7 @@ func NewClient(url string, config interface{}, prom *prometheus.Registry) *Clien
 	return c
 }
 
-func (c *Client) SendEvent(event *types.Event) error {
+func (c *HttpClient) SendEvent(event *types.Event) error {
 	var err error
 
 	fullUrl := fmt.Sprintf("%s/topics/%s/messages", strings.Trim(c.Url, "/ "), strings.Trim(event.Topic, "/ "))
@@ -74,7 +74,7 @@ func (c *Client) SendEvent(event *types.Event) error {
 	return err
 }
 
-func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+func (c *HttpClient) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	confirmedCnt = 0
 	filteredCnt = 0
 
@@ -95,13 +95,13 @@ func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, 
 		}
 	}
 	if iterator.Err() != nil {
-		logger.Get().Debugf("Client request error: %s", err)
+		logger.Get().Debugf("HttpClient request error: %s", err)
 		err = types.NewErrClientRequest(iterator.Err().Error())
 	}
 	return confirmedCnt, lastConfirmedOffset, filteredCnt, err
 }
 
-func (c *Client) ListTopics() ([]string, error) {
+func (c *HttpClient) ListTopics() ([]string, error) {
 	var topics []string
 
 	var err error

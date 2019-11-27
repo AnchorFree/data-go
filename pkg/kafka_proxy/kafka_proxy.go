@@ -20,7 +20,7 @@ import (
 
 type KafkaProxy struct {
 	//client     *circuit.HTTPClient
-	client         client.I
+	client         client.ClientTransport
 	Config         Props
 	prom           *prometheus.Registry
 	breaker        *circuit.Breaker
@@ -58,7 +58,7 @@ var DefaultConfig Props = Props{
 	},
 }
 
-func NewKafkaProxy(cl client.I, cfg Props, prom *prometheus.Registry) *KafkaProxy {
+func NewKafkaProxy(cl client.ClientTransport, cfg Props, prom *prometheus.Registry) *KafkaProxy {
 	if err := mergo.Merge(&cfg, DefaultConfig); err != nil {
 		logger.Get().Panic("Could not merge config: %s", err)
 	}
@@ -139,7 +139,7 @@ func (kp *KafkaProxy) SendEvents(eventIterator types.EventIterator) (uint64, uin
 	if err != nil {
 		switch err.(type) {
 		case *types.ErrClientRequest:
-			logger.Get().Debugf("Client request error: %s", err)
+			logger.Get().Debugf("GrpcClient request error: %s", err)
 		default:
 			logger.Get().Debugf("Kafka proxy SendEvents error: %s", err)
 			kp.breaker.Fail()
@@ -159,7 +159,7 @@ func (kp *KafkaProxy) GetBreaker() *circuit.Breaker {
 	return kp.breaker
 }
 
-func (kp *KafkaProxy) GetClient() client.I {
+func (kp *KafkaProxy) GetClient() client.ClientTransport {
 	return kp.client
 }
 

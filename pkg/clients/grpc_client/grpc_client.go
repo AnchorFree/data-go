@@ -21,22 +21,22 @@ type Props struct {
 	GrpcEnableHistogram bool `yaml:"enable_histogram"`
 }
 
-type Client struct {
+type GrpcClient struct {
 	client.T
 	client pb.KafkaAmbassadorClient
 	Config Props
 	Url    string
 }
 
-var _ client.I = (*Client)(nil)
+var _ client.ClientTransport = (*GrpcClient)(nil)
 
 var DefaultConfig Props = Props{
 	GrpcEnableMetrics:   false,
 	GrpcEnableHistogram: false,
 }
 
-func NewClient(url string, config interface{}, prom *prometheus.Registry) *Client {
-	c := &Client{}
+func NewClient(url string, config interface{}, prom *prometheus.Registry) *GrpcClient {
+	c := &GrpcClient{}
 	c.Prom = prom
 	c.Url = url
 	c.Config = config.(Props)
@@ -71,7 +71,7 @@ func NewClient(url string, config interface{}, prom *prometheus.Registry) *Clien
 	return c
 }
 
-func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
+func (c *GrpcClient) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	stream, streamErr := c.client.Produce(context.Background())
 	cnt := 0
 	confirmedCnt = 0
@@ -112,14 +112,13 @@ func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, 
 					Message:      filteredEvent.Message,
 					StreamOffset: filteredEvent.Offset,
 				}
-				err := stream.Send(&rq)
-				if err != nil {
+				if err := stream.Send(&rq); err != nil {
 					return confirmedCnt, lastConfirmedOffset, filteredCnt, err
 				}
 			}
 		}
-		if iterator.Err() != nil {
-			err = types.NewErrClientRequest(iterator.Err().Error())
+		if srcErr := iterator.Err(); srcErr != nil {
+			srcErr = types.NewErrClientRequest(srcErr.Error())
 		}
 		stream.CloseSend()
 		<-waitc
@@ -128,7 +127,7 @@ func (c *Client) SendEvents(iterator types.EventIterator) (confirmedCnt uint64, 
 	return confirmedCnt, lastConfirmedOffset, filteredCnt, err
 }
 
-func (c *Client) ListTopics() ([]string, error) {
+func (c *GrpcClient) ListTopics() ([]string, error) {
 	var topics []string
 	resp, err := c.client.ListTopics(context.Background(), &pb.Empty{})
 	if err != nil {

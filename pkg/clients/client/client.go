@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type I interface {
+type ClientTransport interface {
 	SendEvents(iterator types.EventIterator) (uint64, uint64, uint64, error)
 	FilterTopicMessage(string, []byte) (string, []byte, bool)
 	SetValidateJsonTopics(map[string]bool)
@@ -38,8 +38,8 @@ func (c *T) SetValidateJsonTopics(topics map[string]bool) {
 }
 
 func (c *T) FilterTopicMessage(topic string, message []byte) (string, []byte, bool) {
-	doValidate, present := c.ValidateJsonTopics[topic]
-	if present && doValidate {
+	doValidate, ok := c.ValidateJsonTopics[topic]
+	if ok && doValidate {
 		if !json.Valid(message) {
 			return c.GetInvalidMessagesTopic(), bytes.Join([][]byte{[]byte(topic), message}, []byte("\t")), true
 		}
@@ -48,8 +48,8 @@ func (c *T) FilterTopicMessage(topic string, message []byte) (string, []byte, bo
 }
 
 func (c *T) FilterTopicEvent(event *types.Event) (*types.Event, bool) {
-	doValidate, present := c.ValidateJsonTopics[event.Topic]
-	if present && doValidate {
+	doValidate, ok := c.ValidateJsonTopics[event.Topic]
+	if ok && doValidate {
 		if !json.Valid(event.Message) {
 			event.Message = bytes.Join([][]byte{[]byte(event.Topic), event.Message}, []byte("\t"))
 			event.Topic = c.GetInvalidMessagesTopic()

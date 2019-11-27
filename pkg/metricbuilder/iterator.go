@@ -25,7 +25,7 @@ func (ei *EventIterator) Next() bool {
 	}
 
 	ei.event = ei.iterator.At()
-	const maxReplacements = 1
+
 	updateMetric(
 		appendTopicToMessage(ei.event.Message, ei.event.Topic),
 		ei.event.Topic,

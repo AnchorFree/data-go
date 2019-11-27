@@ -20,7 +20,7 @@ type MockedClient struct {
 	mock.Mock
 }
 
-var _ client.I = (*MockedClient)(nil)
+var _ client.ClientTransport = (*MockedClient)(nil)
 
 func (m *MockedClient) SendEvents(eventIterator types.EventIterator) (confirmedCnt uint64, lastConfirmedOffset uint64, filteredCnt uint64, err error) {
 	args := m.Called(eventIterator)
