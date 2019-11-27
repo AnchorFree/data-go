@@ -133,17 +133,15 @@ var eventSelectorTest = []ER{
 
 func TestEventReader_ReadEvent(t *testing.T) {
 	for testIdx, test := range eventSelectorTest {
-		lor := line_offset_reader.NewEventReader(bytes.NewReader(test.raw), test.topic)
+		lor := line_offset_reader.NewIterator(bytes.NewReader(test.raw), test.topic)
 		es := NewEventSelector(Config{})
 		es.ApplySelectors(test.esConfig)
-		er := es.NewEventReader(lor)
+		er := es.NewIterator(lor)
 		count := 0
-		for {
-			eventEntry := er.ReadEvent()
+		for er.Next() {
+			event := er.At()
+			t.Logf("%s\n", event.Message)
 			count++
-			if eventEntry.Error != nil {
-				break
-			}
 		}
 		assert.Equal(t, test.count, count, "Got more events that expected in test %d \"%s\" (%d vs %d)", testIdx, test.name, test.count, count)
 	}

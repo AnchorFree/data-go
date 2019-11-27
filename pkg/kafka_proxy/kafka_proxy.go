@@ -2,7 +2,6 @@ package kafka_proxy
 
 import (
 	"errors"
-	"io"
 	"time"
 
 	"github.com/cenk/backoff"
@@ -13,16 +12,15 @@ import (
 	"github.com/anchorfree/data-go/pkg/clients/client"
 	"github.com/anchorfree/data-go/pkg/clients/grpc_client"
 	"github.com/anchorfree/data-go/pkg/clients/http_client"
-	"github.com/anchorfree/data-go/pkg/event"
-	"github.com/anchorfree/data-go/pkg/line_reader"
 	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/types"
 )
 
 //import context "golang.org/x/net/context"
 
 type KafkaProxy struct {
 	//client     *circuit.HTTPClient
-	client         client.I
+	client         client.ClientTransport
 	Config         Props
 	prom           *prometheus.Registry
 	breaker        *circuit.Breaker
@@ -60,7 +58,7 @@ var DefaultConfig Props = Props{
 	},
 }
 
-func NewKafkaProxy(cl client.I, cfg Props, prom *prometheus.Registry) *KafkaProxy {
+func NewKafkaProxy(cl client.ClientTransport, cfg Props, prom *prometheus.Registry) *KafkaProxy {
 	if err := mergo.Merge(&cfg, DefaultConfig); err != nil {
 		logger.Get().Panic("Could not merge config: %s", err)
 	}
@@ -129,39 +127,27 @@ func (kp *KafkaProxy) IsTopicValid(topic string) bool {
 	return false
 }
 
-// Deprecated: use SendEvents instead
-func (kp *KafkaProxy) SendMessages(topic string, lor line_reader.I) (confirmedCnt uint64, filteredCnt uint64, err error) {
-	var lastConfirmedOffset uint64
-	if kp.breaker.Ready() {
-		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendMessages(topic, lor)
-		logger.Get().Debugf("Topic: %s, LastConfirmedOffset: %d", topic, lastConfirmedOffset)
-		if err != nil && err != io.EOF {
-			logger.Get().Debugf("Kafka proxy SendMessages error: %s", err)
-			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times
-		}
-		kp.breaker.Success()
-	} else {
-		err = errors.New("Circuit breaker open")
+func (kp *KafkaProxy) SendEvents(eventIterator types.EventIterator) (uint64, uint64, error) {
+	if !kp.breaker.Ready() {
+		err := errors.New("Circuit breaker open")
 		logger.Get().Debug("Making no kafka proxy request; CircuitBreaker is open.")
+		return 0, 0, err
 	}
-	return confirmedCnt, filteredCnt, err
-}
 
-func (kp *KafkaProxy) SendEvents(eventReader event.Reader) (confirmedCnt uint64, filteredCnt uint64, err error) {
-	var lastConfirmedOffset uint64
-	if kp.breaker.Ready() {
-		confirmedCnt, lastConfirmedOffset, filteredCnt, err = kp.client.SendEvents(eventReader)
-		logger.Get().Debugf("LastConfirmedOffset: %d", lastConfirmedOffset)
-		if err != nil && err != io.EOF {
+	confirmedCnt, lastConfirmedOffset, filteredCnt, err := kp.client.SendEvents(eventIterator)
+	logger.Get().Debugf("LastConfirmedOffset: %d", lastConfirmedOffset)
+	if err != nil {
+		switch err.(type) {
+		case *types.ErrClientRequest:
+			logger.Get().Debugf("GrpcClient request error: %s", err)
+		default:
 			logger.Get().Debugf("Kafka proxy SendEvents error: %s", err)
-			kp.breaker.Fail() // This will trip the breaker once it's failed 10 times
+			kp.breaker.Fail()
+			return confirmedCnt, filteredCnt, err
 		}
-		kp.breaker.Success()
-	} else {
-		err = errors.New("Circuit breaker open")
-		logger.Get().Debug("Making no kafka proxy request; CircuitBreaker is open.")
 	}
-	logger.Get().Debugf("Got error to return: %v", err)
+	kp.breaker.Success()
+
 	return confirmedCnt, filteredCnt, err
 }
 
@@ -173,7 +159,7 @@ func (kp *KafkaProxy) GetBreaker() *circuit.Breaker {
 	return kp.breaker
 }
 
-func (kp *KafkaProxy) GetClient() client.I {
+func (kp *KafkaProxy) GetClient() client.ClientTransport {
 	return kp.client
 }
 

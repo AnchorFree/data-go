@@ -504,11 +504,12 @@ gpr_first:
 	promReg := prometheus.NewRegistry()
 	mConfigs := HelperMetricsConfigFromBytes(t, config)
 	Init(Props{Metrics: mConfigs}, promReg)
-	lor := line_offset_reader.NewReader(bytes.NewReader(data))
-	mb := NewReader(lor, topic)
-	var err error
-	for err == nil {
-		_, _, err = mb.ReadLine()
+	lor := line_offset_reader.NewIterator(bytes.NewReader(data), topic)
+	mb := NewIterator(lor)
+	for_cnt := 0
+	for mb.Next() {
+		_ = mb.At()
+		for_cnt++
 	}
 	foundMetrics := HelperFetchPromCounters(t, promReg)
 	for _, em := range expectedMetrics {

@@ -7,8 +7,10 @@ require (
 	github.com/cenk/backoff v2.1.1+incompatible
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fsnotify/fsnotify v1.4.7
+	github.com/getkin/kin-openapi v0.2.0
 	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
 	github.com/golang/protobuf v1.3.1
+	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/consul/api v1.1.0
 	github.com/imdario/mergo v0.3.7
@@ -16,6 +18,7 @@ require (
 	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/oschwald/geoip2-golang v1.2.1
 	github.com/oschwald/maxminddb-golang v1.3.0 // indirect
+	github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea // indirect
 	github.com/prometheus/client_golang v0.9.2
 	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
 	github.com/prometheus/common v0.0.0-20181126121408-4724e9255275

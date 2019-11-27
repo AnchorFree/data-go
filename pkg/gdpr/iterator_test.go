@@ -162,7 +162,7 @@ func Test_MaskIPs(t *testing.T) {
 		}`)
 	geoSet := geo.NewGeo()
 	geoSet.FromBytes([]byte("74.115.4.69 af;"))
-	reader := &Reader{
+	reader := &EventIterator{
 		geoSet: geoSet,
 	}
 	result := reader.ApplyGDPR(msg)

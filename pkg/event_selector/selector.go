@@ -9,22 +9,22 @@ import (
 )
 
 type EventSelector struct {
-	sync.RWMutex
+	mx        sync.RWMutex
 	selectors *Selectors
-	config *Config
+	config    *Config
 }
 
-func NewEventSelector(config Config) (*EventSelector) {
+func NewEventSelector(config Config) *EventSelector {
 	es := &EventSelector{
 		selectors: new(Selectors),
-		config: &config,
+		config:    &config,
 	}
 	return es
 }
 
 func (es *EventSelector) ApplySelectors(selectors *Selectors) {
-	es.Lock()
-	defer es.Unlock()
+	es.mx.Lock()
+	defer es.mx.Unlock()
 	es.selectors = selectors
 }
 

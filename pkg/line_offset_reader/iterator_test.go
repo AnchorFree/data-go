@@ -3,9 +3,9 @@ package line_offset_reader
 import (
 	eaor "github.com/anchorfree/data-go/pkg/error_at_offset_reader"
 	"github.com/anchorfree/data-go/pkg/testutils"
+	"github.com/anchorfree/data-go/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"io"
 	"strings"
 	"testing"
 )
@@ -88,19 +88,16 @@ var lineOffsetTests = []lineOffsetTest{
 func TestLineSplittingAndOffsets(t *testing.T) {
 	for test_index, test := range lineOffsetTests {
 		inp := strings.NewReader(test.raw)
-		lor := NewReader(inp)
+		lor := NewIterator(inp, "")
 		n := 0
 		offsets := testutils.GetLineOffsets(t, test.raw)
 		lengths := testutils.GetLineLengths(t, test.raw)
-		for {
-			line, offset, err := lor.ReadLine()
+		for lor.Next() {
+			event := lor.At()
 			require.Falsef(t, n+1 > len(offsets), "Found more lines that expected in test %d \"%s\" (%d vs %d)", test_index, test.name, n+1, len(offsets))
-			assert.Falsef(t, offset != offsets[n], "Line offset doesn't match in test #%d \"%s\" line #%d (%d vs %d)", test_index, test.name, n, offset, offsets[n])
-			assert.Falsef(t, len(line) != lengths[n], "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", test_index, test.name, n, len(line), lengths[n])
+			assert.Falsef(t, event.Offset != offsets[n], "Line offset doesn't match in test #%d \"%s\" line #%d (%d vs %d)", test_index, test.name, n, event.Offset, offsets[n])
+			assert.Falsef(t, len(event.Message) != lengths[n], "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", test_index, test.name, n, len(event.Message), lengths[n])
 			n++
-			if err == io.EOF {
-				break
-			}
 		}
 		assert.Falsef(t, n != testutils.GetLineCount(test.raw), "Line count doesn't match in test #%d \"%s\" (%d vs %d)", test_index, test.name, n, testutils.GetLineCount(test.raw))
 	}
@@ -109,23 +106,19 @@ func TestLineSplittingAndOffsets(t *testing.T) {
 func TestInterruptedLineReader(t *testing.T) {
 	for test_index, test := range lineOffsetTests {
 		var (
-			err           error
-			errorAtOffset int = 2
-			offset        uint64
+			errorAtOffset int          = 2
+			event         *types.Event = &types.Event{}
 		)
 		stringReader := strings.NewReader(test.raw)
 		inp := eaor.NewErrorAtOffsetReader(stringReader, errorAtOffset)
-		lor := NewReader(inp)
+		lor := NewIterator(inp, "")
 		n := 0
-		for {
+		for lor.Next() {
 			//line, offset, err := lor.ReadLine()
-			_, offset, err = lor.ReadLine()
+			event = lor.At()
 			n++
-			if err != nil {
-				break
-			}
 		}
-		assert.Falsef(t, uint64(errorAtOffset) < offset && (err == nil || err == io.EOF),
+		assert.Falsef(t, uint64(errorAtOffset) < event.Offset && (lor.Err() == nil),
 			"Error reader didn't trigger an error in test #%d \"%s\" (%d vs %d)", test_index, test.name, n, testutils.GetLineCount(test.raw))
 	}
 }
@@ -158,18 +151,15 @@ var jsonMessageTests = []jsonMessageTest{
 func TestReadJsonMessageAndOffsets(t *testing.T) {
 	for ind, test := range jsonMessageTests {
 		inp := strings.NewReader(test.raw)
-		lor := NewReader(inp)
-		lor.LookForJsonDelimiters = true
+		lor := NewIterator(inp, "")
+		lor.LookForJsonDelimiters(true)
 		n := 0
-		for {
+		for lor.Next() {
 			require.Falsef(t, n+1 > len(test.offsets), "Found more lines that expected in test %d \"%s\" (%d vs %d)", ind, test.name, n+1, len(test.offsets))
-			message, offset, err := lor.ReadLine()
-			assert.Equalf(t, test.offsets[n], offset, "Line offset doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.offsets[n], offset)
-			assert.Equalf(t, test.lengths[n], len(message), "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.lengths[n], len(message))
+			event := lor.At()
+			assert.Equalf(t, test.offsets[n], event.Offset, "Line offset doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.offsets[n], event.Offset)
+			assert.Equalf(t, test.lengths[n], len(event.Message), "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.lengths[n], len(event.Message))
 			n++
-			if err == io.EOF {
-				break
-			}
 		}
 		assert.Equalf(t, len(test.offsets), n, "Line count doesn't match in test #%d \"%s\" (%d vs %d)", ind, test.name, len(test.offsets), n)
 	}
@@ -178,19 +168,16 @@ func TestReadJsonMessageAndOffsets(t *testing.T) {
 func TestReadJsonMessageTrimmedAndOffsets(t *testing.T) {
 	for ind, test := range jsonMessageTests {
 		inp := strings.NewReader(test.raw)
-		lor := NewReader(inp)
-		lor.LookForJsonDelimiters = true
-		lor.TrimMessages = true
+		lor := NewIterator(inp, "")
+		lor.LookForJsonDelimiters(true)
+		lor.TrimMessages(true)
 		n := 0
-		for {
+		for lor.Next() {
 			require.Falsef(t, n+1 > len(test.offsets), "Found more lines that expected in test %d \"%s\" (%d vs %d)", ind, test.name, n+1, len(test.offsets))
-			message, offset, err := lor.ReadLine()
-			assert.Equalf(t, test.offsets[n], offset, "Line offset doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.offsets[n], offset)
-			assert.Equalf(t, test.trimmedLengths[n], len(message), "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.trimmedLengths[n], len(message))
+			event := lor.At()
+			assert.Equalf(t, test.offsets[n], event.Offset, "Line offset doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.offsets[n], event.Offset)
+			assert.Equalf(t, test.trimmedLengths[n], len(event.Message), "Line length doesn't match in test #%d \"%s\" line #%d (%d vs %d)", ind, test.name, n, test.trimmedLengths[n], len(event.Message))
 			n++
-			if err == io.EOF {
-				break
-			}
 		}
 		assert.Equalf(t, len(test.offsets), n, "Line count doesn't match in test #%d \"%s\" (%d vs %d)", ind, test.name, len(test.offsets), n)
 	}

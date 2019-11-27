@@ -72,8 +72,8 @@ sieben acht gute Nacht`)
 
 	prom := prometheus.NewRegistry()
 	cl := NewClient(addr, Props{}, prom)
-	lor := line_offset_reader.NewReader(bytes.NewReader(fullMessage))
-	_, lastConfirmedOffset, _, err := cl.SendMessages(topic, lor)
+	lor := line_offset_reader.NewIterator(bytes.NewReader(fullMessage), topic)
+	_, lastConfirmedOffset, _, err := cl.SendEvents(lor)
 	if err != nil {
 		t.Errorf("Error sending messages: %s", err)
 	}
@@ -118,7 +118,6 @@ var jsonTests = []jsonFilterTest{
 }
 
 func TestJsonFilter(t *testing.T) {
-
 	topic := "test"
 	testCh := make(chan TopicMessage, 1)
 	var grpcSrv *grpc.Server
@@ -139,8 +138,8 @@ func TestJsonFilter(t *testing.T) {
 	}
 	cl.SetValidateJsonTopics(validateJsonTopics)
 	for _, test := range jsonTests {
-		lor := line_offset_reader.NewReader(bytes.NewReader(test.message))
-		_, _, filteredCnt, err := cl.SendMessages(topic, lor)
+		lor := line_offset_reader.NewIterator(bytes.NewReader(test.message), topic)
+		_, _, filteredCnt, err := cl.SendEvents(lor)
 		if err != nil {
 			t.Errorf("Error sending messages: %s", err)
 		}

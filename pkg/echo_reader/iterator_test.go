@@ -12,29 +12,24 @@ import (
 func TestEventReader_ReadEvent(t *testing.T) {
 	topic := "test"
 	raw := []byte("This is the test\nSecond line here\n")
-	lor := line_offset_reader.NewEventReader(bytes.NewReader(raw), topic)
+	lor := line_offset_reader.NewIterator(bytes.NewReader(raw), topic)
 	pipeReader, pipeWriter := io.Pipe()
-	echoReader := NewEventReader(lor, pipeWriter)
+	echoReader := NewIterator(lor, pipeWriter)
 	go func() {
-		for {
-			eventEntry := echoReader.ReadEvent()
-			if eventEntry.Error != nil {
-				_ = pipeWriter.Close()
-				return
-			}
+		cnt := 0
+		for echoReader.Next() {
+			_ = echoReader.At()
+			cnt++
 		}
+		_ = pipeWriter.Close()
 	}()
-	rawLor := line_offset_reader.NewEventReader(bytes.NewReader(raw), topic)
+	rawLor := line_offset_reader.NewIterator(bytes.NewReader(raw), topic)
 	buf := bytes.NewBuffer([]byte(""))
-	for {
-		//line, _, err := rawLor.ReadLine()
-		eventEntry := rawLor.ReadEvent()
-		buf.Write([]byte(echoReader.lineReader.Prefix))
-		buf.Write(eventEntry.Message)
-		buf.Write([]byte(echoReader.lineReader.Suffix))
-		if eventEntry.Error != nil {
-			break
-		}
+	for rawLor.Next() {
+		event := rawLor.At()
+		buf.Write([]byte(echoReader.prefix))
+		buf.Write(event.Message)
+		buf.Write([]byte(echoReader.suffix))
 	}
 	echoed, _ := ioutil.ReadAll(pipeReader)
 	expected, _ := ioutil.ReadAll(buf)
@@ -45,22 +40,22 @@ func TestEventReader_SetPrefix(t *testing.T) {
 	topic := "test"
 	raw := []byte("This is the test\nSecond line here\n")
 	prefix := "PrefixString"
-	lor := line_offset_reader.NewEventReader(bytes.NewReader(raw), topic)
+	lor := line_offset_reader.NewIterator(bytes.NewReader(raw), topic)
 	_, pipeWriter := io.Pipe()
 	defer pipeWriter.Close()
-	echoReader := NewEventReader(lor, pipeWriter)
+	echoReader := NewIterator(lor, pipeWriter)
 	echoReader.SetPrefix(prefix)
-	assert.Equal(t, prefix, echoReader.lineReader.Prefix)
+	assert.Equal(t, prefix, echoReader.prefix)
 }
 
 func TestEventReader_SetSuffix(t *testing.T) {
 	topic := "test"
 	raw := []byte("This is the test\nSecond line here\n")
 	suffix := "SuffixString"
-	lor := line_offset_reader.NewEventReader(bytes.NewReader(raw), topic)
+	lor := line_offset_reader.NewIterator(bytes.NewReader(raw), topic)
 	_, pipeWriter := io.Pipe()
 	defer pipeWriter.Close()
-	echoReader := NewEventReader(lor, pipeWriter)
+	echoReader := NewIterator(lor, pipeWriter)
 	echoReader.SetSuffix(suffix)
-	assert.Equal(t, suffix, echoReader.lineReader.Suffix)
+	assert.Equal(t, suffix, echoReader.suffix)
 }
