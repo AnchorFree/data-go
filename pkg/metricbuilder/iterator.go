@@ -5,16 +5,16 @@ import (
 )
 
 type EventIterator struct {
-	iterator   types.EventIterator
-	event      *types.Event
-	err        error
+	iterator types.EventIterator
+	event    *types.Event
+	err      error
 }
 
 var _ types.EventIterator = (*EventIterator)(nil)
 
 func NewIterator(eventIterator types.EventIterator) *EventIterator {
 	return &EventIterator{
-		iterator:   eventIterator,
+		iterator: eventIterator,
 	}
 }
 

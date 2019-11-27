@@ -8,20 +8,20 @@ import (
 )
 
 type EventIterator struct {
-	iterator   types.EventIterator
-	event      *types.Event
-	err        error
-	writer io.Writer
-	prefix string
-	suffix string
+	iterator types.EventIterator
+	event    *types.Event
+	err      error
+	writer   io.Writer
+	prefix   string
+	suffix   string
 }
 
 var _ types.EventIterator = (*EventIterator)(nil)
 
 func NewIterator(eventIterator types.EventIterator, w io.Writer) *EventIterator {
 	return &EventIterator{
-		iterator:   eventIterator,
-		writer: w,
+		iterator: eventIterator,
+		writer:   w,
 	}
 }
 

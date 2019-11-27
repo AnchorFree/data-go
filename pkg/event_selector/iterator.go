@@ -39,7 +39,7 @@ func (ei *EventIterator) Next() bool {
 
 	ei.entry = ei.iterator.At()
 
-	message, err := fastjson.Parse(ei.entry.MessageString())
+	message, err := fastjson.ParseBytes(ei.entry.Message)
 	if err != nil {
 		logger.Get().Infof("json parsing error: %#v", err)
 		return true

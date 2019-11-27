@@ -1,5 +1,7 @@
 package types
 
+import "fmt"
+
 // Event type, contains all required fields
 type Event struct {
 	Topic   string
@@ -26,4 +28,8 @@ const (
 
 func (e *Event) MessageString() string {
 	return string(e.Message)
+}
+
+func (e *Event) String() string {
+	return fmt.Sprintf("{Topic: `%s`, Message: `%s` }", e.Topic, string(e.Message))
 }
