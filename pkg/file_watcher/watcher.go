@@ -28,7 +28,7 @@ func New(file string, callback func(file string)) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	w.watcher.Add(filepath.Dir(absPath))
+	_ = w.watcher.Add(filepath.Dir(absPath))
 
 	if err != nil {
 		return nil, err

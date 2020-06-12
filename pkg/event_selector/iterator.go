@@ -50,6 +50,7 @@ func (ei *EventIterator) Next() bool {
 		if ei.entry.Topic == es.TargetTopic {
 			continue
 		}
+		/* #nosec */
 		if checkEventSelection(message, &es) {
 			selectedEvent := &types.Event{}
 			*selectedEvent = *ei.entry

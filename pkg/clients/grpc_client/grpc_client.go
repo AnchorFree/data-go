@@ -90,7 +90,7 @@ func (c *GrpcClient) SendEvents(iterator types.EventIterator) (confirmedCnt uint
 				}
 				if err != nil {
 					close(waitc)
-					stream.CloseSend()
+					_ = stream.CloseSend()
 					logger.Get().Errorf("Failed to receive GRPC server response: %v", err)
 					return
 				}
@@ -120,7 +120,7 @@ func (c *GrpcClient) SendEvents(iterator types.EventIterator) (confirmedCnt uint
 		if srcErr := iterator.Err(); srcErr != nil {
 			srcErr = types.NewErrClientRequest(srcErr.Error())
 		}
-		stream.CloseSend()
+		_ = stream.CloseSend()
 		<-waitc
 	}
 	logger.Get().Debugf("Finished streaming. Lines: %d, confirmedLines: %d, LastConfirmedOffset: %d, err: %s", cnt, confirmedCnt, lastConfirmedOffset, err)
