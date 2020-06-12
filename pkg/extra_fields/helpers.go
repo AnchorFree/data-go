@@ -96,7 +96,7 @@ func loadCityDB(panicOnFail bool) {
 		cityMux.Lock()
 		if cityDB != nil {
 			logger.Get().Debug("Closing old cityDB")
-			cityDB.Close()
+			_ = cityDB.Close()
 		}
 		cityDB = tmpDB
 		cityMux.Unlock()
@@ -115,7 +115,7 @@ func loadIspDB(panicOnFail bool) {
 		ispMux.Lock()
 		if ispDB != nil {
 			logger.Get().Debug("Closing old ispDB")
-			ispDB.Close()
+			_ = ispDB.Close()
 		}
 		ispDB = tmpDB
 		ispMux.Unlock()

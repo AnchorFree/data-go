@@ -2,7 +2,7 @@ package gzip_hash_reader
 
 import (
 	"compress/gzip"
-	"crypto/md5"
+	"crypto/md5" // #nosec
 	"github.com/anchorfree/data-go/pkg/logger"
 	"hash"
 	"io"
@@ -22,7 +22,7 @@ type GzipHashReader struct {
 func NewGzipHashReader(inp io.Reader) (r *GzipHashReader, err error) {
 	r = new(GzipHashReader)
 	r.bytesRead = 0
-	r.checksum = md5.New()
+	r.checksum = md5.New() // #nosec
 	r.pipeReader, r.pipeWriter = io.Pipe()
 	r.teeReader = io.TeeReader(inp, r.pipeWriter)
 	r.waitGroup.Add(1)
@@ -51,9 +51,9 @@ func (r *GzipHashReader) BytesRead() int64 {
 }
 
 func (r *GzipHashReader) Close() {
-	r.pipeWriter.Close()
-	r.pipeReader.Close()
-	r.gzipReader.Close()
+	_ = r.pipeWriter.Close()
+	_ = r.pipeReader.Close()
+	_ = r.gzipReader.Close()
 }
 
 func (r *GzipHashReader) Sum() [md5.Size]byte {

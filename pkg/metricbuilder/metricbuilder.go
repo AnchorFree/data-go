@@ -142,6 +142,7 @@ func isCountableTopic(topic string, mConfig *MetricProps) bool {
 
 func updateMetric(message []byte, topic string) {
 	for metricName, metricConf := range metricConfigs {
+		/* #nosec */
 		if !isCountableTopic(topic, &metricConf) {
 			continue
 		}

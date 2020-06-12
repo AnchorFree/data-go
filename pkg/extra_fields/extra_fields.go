@@ -32,7 +32,7 @@ type ExtraFields struct {
 func (f *ExtraFields) GeoOrigin(req *http.Request) {
 	ip := GetIPAdress(req)
 
-	f.fromISP(req, ip)
+	_ = f.fromISP(req, ip)
 	if geoSet.Get(ip.String()) == "af" && IsCloudfront(req) == 1 {
 		return
 	}

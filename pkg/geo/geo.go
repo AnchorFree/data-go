@@ -128,7 +128,7 @@ func (g *Geo) FromBytes(data []byte) *Geo {
 					logger.Get().Warnf("Could not parse IP from geo file %s: %s", g.GeoFile, recordParts[0])
 					continue
 				}
-				ranger.Insert(cidranger.NewBasicRangerEntry(*ipNet))
+				_ = ranger.Insert(cidranger.NewBasicRangerEntry(*ipNet))
 				rangers[string(recordParts[1])] = ranger
 			} else {
 				logger.Get().Warnf("Malformed geo record in %s: %s", g.GeoFile, ipline)
@@ -198,7 +198,7 @@ func ReadFile(filename string) (*[]byte, error) {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadFile(filename)
+	data, err := ioutil.ReadFile(filepath.Clean(filename))
 
 	if err != nil {
 		return nil, err
