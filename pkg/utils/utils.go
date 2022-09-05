@@ -28,8 +28,10 @@ func UniqueStringSlice(inp []string) []string {
 // but will not reveal exact location
 // 1.23456789 -> 1.x
 func SanityzeCoordinates(src string) string {
+	escapedSrc := strings.Replace(src, "\n", "", -1)
+	escapedSrc = strings.Replace(escapedSrc, "\r", "", -1)
 	rgx := regexp.MustCompile(`([0-9]+)\.[0-9]+`)
-	return rgx.ReplaceAllString(src, "$1.x")
+	return rgx.ReplaceAllString(escapedSrc, "$1.x")
 }
 
 // proudly stolen from
