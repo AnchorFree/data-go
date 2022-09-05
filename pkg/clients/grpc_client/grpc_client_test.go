@@ -3,17 +3,18 @@ package grpc_client
 import (
 	"bytes"
 	"context"
-	//"fmt"
+	"io"
+	"net"
+	"testing"
+
 	pb "github.com/anchorfree/data-go/pkg/ambassador/pb"
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
 	"github.com/anchorfree/data-go/pkg/testutils"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
-	"io"
-	"net"
-	"testing"
 )
 
 type TopicMessage struct {
@@ -191,6 +192,8 @@ func TestListTopics(t *testing.T) {
 		cl := NewClient(addr, Props{}, prom)
 		//test
 		fetchedTopics, err := cl.ListTopics()
+		assert.NoError(t, err)
+
 		assert.Equal(t, test.topics, fetchedTopics)
 		mockServer.AssertExpectations(t)
 	}

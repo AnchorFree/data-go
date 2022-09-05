@@ -3,10 +3,11 @@ package gzip_hash_reader
 import (
 	"bytes"
 	"crypto/md5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"io"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type gzipHashTest struct {
@@ -68,6 +69,7 @@ func TestGzipHashReader(t *testing.T) {
 			buff bytes.Buffer
 			err  error = nil
 		)
+		// nolint: ineffassign
 		for {
 			var n int = 0
 			var chunkLen = 10

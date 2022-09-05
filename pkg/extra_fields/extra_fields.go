@@ -74,7 +74,7 @@ func (f *ExtraFields) GetCityDBRecord(ip net.IP) (*geoip2.City, error) {
 }
 
 func GetNginxHostname(req *http.Request) string {
-	return req.Header.Get(http.CanonicalHeaderKey("host"))
+	return req.Header.Get("host")
 }
 
 func GetIPAdress(req *http.Request) net.IP {
@@ -91,7 +91,7 @@ func GetIPAdress(req *http.Request) net.IP {
 	realIP = net.ParseIP(remoteAddr)
 
 	for _, h := range []string{"X-Real-Ip", "X-Forwarded-For"} {
-		if len(req.Header.Get(http.CanonicalHeaderKey(h))) > 0 {
+		if len(req.Header.Get(h)) > 0 {
 			addresses := utils.ParseList(req.Header, http.CanonicalHeaderKey(h))
 			for i := 0; i < len(addresses); i++ {
 				ip := strings.TrimSpace(addresses[i])
@@ -230,7 +230,7 @@ func (f *ExtraFields) fromISP(req *http.Request, ip net.IP) error {
 }
 
 func IsCloudfront(req *http.Request) int {
-	amzId := req.Header.Get(http.CanonicalHeaderKey("X-Amz-Cf-Id"))
+	amzId := req.Header.Get("X-Amz-Cf-Id")
 	if len(amzId) > 0 {
 		return 1
 	}

@@ -29,11 +29,12 @@ func TestGeo(t *testing.T) {
 	})
 	assert.NoError(t, err)
 
-	tmpFile.Truncate(0)
+	err = tmpFile.Truncate(0)
 	assert.NoError(t, err)
 
 	_, err = tmpFile.WriteAt([]byte("some dummy data"), 0)
 	assert.NoError(t, err)
+
 	select {
 	case <-c:
 		//success
