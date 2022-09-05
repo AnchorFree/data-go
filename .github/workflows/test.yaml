@@ -4,11 +4,7 @@ on:
   push:
   pull_request:
 
-env:
-  GO111MODULE: on
-
 jobs:
-
   golangci-lint:
     runs-on: ubuntu-latest
     steps:
