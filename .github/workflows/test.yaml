@@ -3,6 +3,8 @@ name: Test
 on:
   push:
   pull_request:
+  schedule:
+  - cron: '0 0 * * 0'
 
 jobs:
 
@@ -26,9 +28,10 @@ jobs:
     steps:
 
       - uses: actions/checkout@v3
+        submodules: true
 
       - uses: actions/setup-go@v3
         with:
-          go-version-file: './go.mod'
+          go-version-file: go.mod
 
       - run: go test -v ./...
