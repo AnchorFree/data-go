@@ -2,7 +2,6 @@ package geo
 
 import (
 	"bytes"
-	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/anchorfree/data-go/pkg/logger"
+
 	"github.com/fsnotify/fsnotify"
 	"github.com/yl2chen/cidranger"
 )
@@ -198,7 +198,7 @@ func ReadFile(filename string) (*[]byte, error) {
 		return nil, err
 	}
 
-	data, err := ioutil.ReadFile(filepath.Clean(filename))
+	data, err := os.ReadFile(filepath.Clean(filename))
 
 	if err != nil {
 		return nil, err

@@ -67,7 +67,8 @@ sieben acht gute Nacht`)
 	grpcSrv = grpc.NewServer()
 	pb.RegisterKafkaAmbassadorServer(grpcSrv, &TestServer{t: t, ch: testCh})
 	go func() {
-		grpcSrv.Serve(lis)
+		err = grpcSrv.Serve(lis)
+		assert.NoError(t, err)
 	}()
 	defer grpcSrv.Stop()
 
@@ -130,7 +131,8 @@ func TestJsonFilter(t *testing.T) {
 	grpcSrv = grpc.NewServer()
 	pb.RegisterKafkaAmbassadorServer(grpcSrv, &TestServer{t: t, ch: testCh})
 	go func() {
-		grpcSrv.Serve(lis)
+		err = grpcSrv.Serve(lis)
+		assert.NoError(t, err)
 	}()
 	prom := prometheus.NewRegistry()
 	cl := NewClient(addr, Props{}, prom)

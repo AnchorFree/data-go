@@ -59,7 +59,7 @@ func NewClient(url string, config interface{}, prom *prometheus.Registry) *GrpcC
 		grpcMetrics.EnableClientHandlingTimeHistogram()
 	}
 
-	trimmedUrl := strings.TrimLeft(c.Url, "grpc://")
+	trimmedUrl := strings.TrimLeft(c.Url, "grpc://") // nolint: staticcheck
 	cc, err := grpc.Dial(trimmedUrl, dialOpts...)
 	if err != nil {
 		logger.Get().Error(err)
@@ -133,8 +133,6 @@ func (c *GrpcClient) ListTopics() ([]string, error) {
 	if err != nil {
 		return topics, err
 	}
-	for _, t := range resp.Topics {
-		topics = append(topics, t)
-	}
+	topics = append(topics, resp.Topics...)
 	return topics, err
 }

@@ -41,7 +41,7 @@ func New(file string, callback func(file string)) (*T, error) {
 
 	go func(w *T) {
 		var timer *time.Timer
-		for {
+		for { // nolint:gosimple
 			select {
 			case event := <-w.watcher.Events:
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {

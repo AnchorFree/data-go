@@ -3,7 +3,7 @@ package http_client
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/anchorfree/data-go/pkg/line_offset_reader"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,7 +21,7 @@ func TestHttpRequests(t *testing.T) {
 	message := []byte("This is a test string")
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		expectedPath := fmt.Sprintf("/topics/%s/messages", topic)
 
 		assert.Equal(t, expectedPath, r.URL.EscapedPath(), "Request path is not what expected")
@@ -79,7 +80,7 @@ func TestJsonFilter(t *testing.T) {
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		body, err := ioutil.ReadAll(r.Body)
+		body, err := io.ReadAll(r.Body)
 		re := regexp.MustCompile(".*/topics/([A-z0-9_-]+)/messages.*")
 		match := re.FindStringSubmatch(r.URL.EscapedPath())
 		assert.Equal(t, 2, len(match))
@@ -132,7 +133,7 @@ func TestListTopics(t *testing.T) {
 		//init server
 		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
-			_, err := ioutil.ReadAll(r.Body)
+			_, err := io.ReadAll(r.Body)
 			assert.Equal(t, "/topics", r.URL.EscapedPath(), "Request path is not what expected")
 			fmt.Fprintln(w, strings.Join(test.topics, "\n"))
 			assert.NoError(t, err)

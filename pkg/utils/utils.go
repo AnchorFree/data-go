@@ -62,6 +62,7 @@ func init() {
 	// token      = 1*<any CHAR except CTLs or separators>
 	// qdtext     = <any TEXT except <">>
 
+	// nolint: gosimple
 	for c := 0; c < 256; c++ {
 		var t octetType
 		isCtl := c <= 31 || c == 127
