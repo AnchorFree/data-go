@@ -1,6 +1,6 @@
 module github.com/anchorfree/data-go
 
-go 1.12
+go 1.16
 
 require (
 	github.com/buger/jsonparser v0.0.0-20181115193947-bf1c66bbce23
@@ -8,9 +8,8 @@ require (
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/getkin/kin-openapi v0.2.0
-	github.com/golang/gddo v0.0.0-20190312205958-5a2505f3dbf0
 	github.com/golang/protobuf v1.3.1
-	github.com/google/go-cmp v0.3.1 // indirect
+	github.com/google/go-cmp v0.5.8
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/consul/api v1.1.0
 	github.com/imdario/mergo v0.3.7
@@ -32,6 +31,7 @@ require (
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/net v0.0.0-20190415214537-1da14a5a36f2
+	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
 	google.golang.org/grpc v1.20.1
 	gopkg.in/yaml.v2 v2.2.2
 )
