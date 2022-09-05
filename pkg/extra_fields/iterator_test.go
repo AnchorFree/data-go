@@ -7,10 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-
 	"github.com/anchorfree/data-go/pkg/geo"
 	lor "github.com/anchorfree/data-go/pkg/line_offset_reader"
+
+	"github.com/stretchr/testify/assert"
 )
 
 type EF struct {
