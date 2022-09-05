@@ -25,7 +25,6 @@ func UniqueStringSlice(inp []string) []string {
 
 // replace all digits after decimal dot with 'x'
 // this will obfuscate location to "country or large region"
-// but will not reveal exact location
 // 1.23456789 -> 1.x
 func SanityzeCoordinates(src string) string {
 	escapedSrc := strings.Replace(src, "\n", "", -1)

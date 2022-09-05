@@ -130,13 +130,16 @@ func (f *ExtraFields) coordinates(req *http.Request, ip net.IP) error {
 		if err == nil {
 			f.Latitude = latVal
 		} else {
-			logger.Get().Warnf("Could not parse latitude value: %s", utils.SanityzeCoordinates(afLat))
+			sanityzedLat := utils.SanityzeCoordinates(afLat)
+			logger.Get().Warnf("Could not parse latitude value: %s", sanityzedLat)
+			return errors.New("Could not parse latitude value")
 		}
 		longVal, err := strconv.ParseFloat(afLong, 64)
 		if err == nil {
 			f.Longitude = longVal
 		} else {
 			logger.Get().Warnf("Could not parse longitude value: %s", utils.SanityzeCoordinates(afLong))
+			return errors.New("Could not parse longitude value")
 		}
 	}
 	return nil
