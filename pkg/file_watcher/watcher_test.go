@@ -9,7 +9,7 @@ import (
 )
 
 func TestGeo(t *testing.T) {
-	// Create temd dir and inside it a file
+	// Create temp dir and a file inside it
 	// Mac OS will try to watch file`s parent directory
 	tmpDir, err := os.MkdirTemp("", "test-data-go-*")
 	defer os.Remove(tmpDir)
@@ -30,6 +30,8 @@ func TestGeo(t *testing.T) {
 	assert.NoError(t, err)
 
 	tmpFile.Truncate(0)
+	assert.NoError(t, err)
+
 	_, err = tmpFile.WriteAt([]byte("some dummy data"), 0)
 	assert.NoError(t, err)
 	select {
