@@ -28,7 +28,8 @@ jobs:
     steps:
 
       - uses: actions/checkout@v3
-        submodules: true
+        with:
+          submodules: true
 
       - uses: actions/setup-go@v3
         with:
