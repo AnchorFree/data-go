@@ -2,13 +2,15 @@ package extra_fields
 
 import (
 	"errors"
-	"github.com/anchorfree/data-go/pkg/logger"
-	"github.com/golang/gddo/httputil/header"
-	geoip2 "github.com/oschwald/geoip2-golang"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/anchorfree/data-go/pkg/logger"
+	"github.com/anchorfree/data-go/pkg/utils"
+
+	geoip2 "github.com/oschwald/geoip2-golang"
 )
 
 type ExtraFields struct {
@@ -52,8 +54,8 @@ func (f *ExtraFields) GeoOrigin(req *http.Request) {
 	}
 }
 
-//cityDB.City() wrapper function, to cache the result.
-//WARNING: It's suggested that IP argument will be the same within same ExtraFields set!
+// cityDB.City() wrapper function, to cache the result.
+// WARNING: It's suggested that IP argument will be the same within same ExtraFields set!
 func (f *ExtraFields) GetCityDBRecord(ip net.IP) (*geoip2.City, error) {
 	var (
 		err error
@@ -72,7 +74,7 @@ func (f *ExtraFields) GetCityDBRecord(ip net.IP) (*geoip2.City, error) {
 }
 
 func GetNginxHostname(req *http.Request) string {
-	return req.Header.Get(http.CanonicalHeaderKey("host"))
+	return req.Header.Get("host")
 }
 
 func GetIPAdress(req *http.Request) net.IP {
@@ -89,8 +91,8 @@ func GetIPAdress(req *http.Request) net.IP {
 	realIP = net.ParseIP(remoteAddr)
 
 	for _, h := range []string{"X-Real-Ip", "X-Forwarded-For"} {
-		if len(req.Header.Get(http.CanonicalHeaderKey(h))) > 0 {
-			addresses := header.ParseList(req.Header, http.CanonicalHeaderKey(h))
+		if len(req.Header.Get(h)) > 0 {
+			addresses := utils.ParseList(req.Header, http.CanonicalHeaderKey(h))
 			for i := 0; i < len(addresses); i++ {
 				ip := strings.TrimSpace(addresses[i])
 				// header can contain spaces too, strip those out.
@@ -120,7 +122,7 @@ func (f *ExtraFields) coordinates(req *http.Request, ip net.IP) error {
 	} else {
 		parts := strings.Split(afLatLong, ",")
 		if len(parts) != 2 {
-			logger.Get().Warnf("Invalid x_af_c_ll value: %s", afLatLong)
+			logger.Get().Warnf("Invalid x_af_c_ll value: must contains two comma separated decimal degrees")
 			return errors.New("Invalid x_af_c_ll value")
 		}
 		afLat, afLong := parts[0], parts[1]
@@ -128,13 +130,15 @@ func (f *ExtraFields) coordinates(req *http.Request, ip net.IP) error {
 		if err == nil {
 			f.Latitude = latVal
 		} else {
-			logger.Get().Warnf("Could not parse latitude value: %s", afLat)
+			logger.Get().Warnf("Could not parse latitude value: %s", utils.SanityzeCoordinates(afLat))
+			return errors.New("Could not parse latitude value")
 		}
 		longVal, err := strconv.ParseFloat(afLong, 64)
 		if err == nil {
 			f.Longitude = longVal
 		} else {
-			logger.Get().Warnf("Could not parse longitude value: %s", afLong)
+			logger.Get().Warnf("Could not parse longitude value: %s", utils.SanityzeCoordinates(afLong))
+			return errors.New("Could not parse longitude value")
 		}
 	}
 	return nil
@@ -228,7 +232,7 @@ func (f *ExtraFields) fromISP(req *http.Request, ip net.IP) error {
 }
 
 func IsCloudfront(req *http.Request) int {
-	amzId := req.Header.Get(http.CanonicalHeaderKey("X-Amz-Cf-Id"))
+	amzId := req.Header.Get("X-Amz-Cf-Id")
 	if len(amzId) > 0 {
 		return 1
 	}

@@ -46,7 +46,7 @@ type MessagePayload struct {
 var metricConfigs map[string]MetricProps
 var LRUInterval = 1 * time.Minute
 
-//modify to read from configuration file
+// modify to read from configuration file
 var LRUTimeBucket float64 = 86400
 
 var (
@@ -103,7 +103,7 @@ func Init(config Props, promRegistry *prometheus.Registry) {
 	for metricName, metricConfig := range metricConfigs {
 		labelsArray := func() []string {
 			var tmp []string
-			for labelName, _ := range metricConfig.Labels {
+			for labelName := range metricConfig.Labels {
 				tmp = append(tmp, labelName)
 			}
 			return tmp

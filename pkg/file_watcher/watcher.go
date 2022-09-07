@@ -1,9 +1,10 @@
 package file_watcher
 
 import (
-	"github.com/fsnotify/fsnotify"
 	"path/filepath"
 	"time"
+
+	"github.com/fsnotify/fsnotify"
 )
 
 var DefaultTimeoutAfterLastEvent = 5 * time.Second
@@ -24,18 +25,23 @@ func New(file string, callback func(file string)) (*T, error) {
 		TimeoutAfterLastEvent: DefaultTimeoutAfterLastEvent,
 	}
 	w.watcher, err = fsnotify.NewWatcher()
+	if err != nil {
+		return nil, err
+	}
+
 	absPath, err := filepath.Abs(file)
 	if err != nil {
 		return nil, err
 	}
-	_ = w.watcher.Add(filepath.Dir(absPath))
 
+	err = w.watcher.Add(filepath.Dir(absPath))
 	if err != nil {
 		return nil, err
 	}
+
 	go func(w *T) {
 		var timer *time.Timer
-		for {
+		for { // nolint:gosimple
 			select {
 			case event := <-w.watcher.Events:
 				if event.Op&fsnotify.Write == fsnotify.Write || event.Op&fsnotify.Create == fsnotify.Create {

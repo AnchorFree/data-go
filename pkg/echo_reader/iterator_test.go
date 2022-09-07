@@ -2,11 +2,12 @@ package echo_reader
 
 import (
 	"bytes"
-	"github.com/anchorfree/data-go/pkg/line_offset_reader"
-	"github.com/stretchr/testify/assert"
 	"io"
-	"io/ioutil"
 	"testing"
+
+	"github.com/anchorfree/data-go/pkg/line_offset_reader"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEventReader_ReadEvent(t *testing.T) {
@@ -31,8 +32,8 @@ func TestEventReader_ReadEvent(t *testing.T) {
 		buf.Write(event.Message)
 		buf.Write([]byte(echoReader.suffix))
 	}
-	echoed, _ := ioutil.ReadAll(pipeReader)
-	expected, _ := ioutil.ReadAll(buf)
+	echoed, _ := io.ReadAll(pipeReader)
+	expected, _ := io.ReadAll(buf)
 	assert.Equal(t, expected, echoed)
 }
 

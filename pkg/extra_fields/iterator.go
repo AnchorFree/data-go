@@ -2,9 +2,9 @@ package extra_fields
 
 import (
 	"encoding/json"
-	"github.com/anchorfree/data-go/pkg/logger"
 	"net/http"
 
+	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/data-go/pkg/types"
 )
 

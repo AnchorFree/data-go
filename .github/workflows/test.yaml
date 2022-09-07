@@ -1,0 +1,40 @@
+name: Test
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  schedule:
+  - cron: '0 0 * * 0'
+
+jobs:
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          args: --verbose
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: go.mod
+
+      - run: go test -v ./...

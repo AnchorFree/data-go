@@ -1,10 +1,11 @@
 package testutils
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var letters = []rune(" \t,abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

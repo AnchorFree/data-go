@@ -1,12 +1,13 @@
 package logging_response_writer
 
 import (
-	"github.com/stretchr/testify/assert"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestLoggingResponseWriter(t *testing.T) {
@@ -20,6 +21,6 @@ func TestLoggingResponseWriter(t *testing.T) {
 	lrw = NewLoggingResponseWriter(w)
 	http.Error(lrw, errorMessage, http.StatusNotFound)
 	assert.Equal(t, http.StatusNotFound, lrw.StatusCode(), "LoggingResponseWriter didn't get reset through http.Error")
-	responseBody, _ := ioutil.ReadAll(w.Result().Body)
+	responseBody, _ := io.ReadAll(w.Result().Body)
 	assert.Equal(t, errorMessage, strings.Trim(string(responseBody), "\n"), "LoggingResponseWriter didn't write error message to the response body when invoked http.Error")
 }
