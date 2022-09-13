@@ -26,16 +26,13 @@ require (
 	github.com/stretchr/testify v1.3.0
 	github.com/valyala/fasthttp v1.24.0
 	github.com/valyala/fastjson v1.4.1
-	github.com/valyala/tcplisten v1.0.0 // indirect
 	github.com/yl2chen/cidranger v0.0.0-20180214081945-928b519e5268
 	go.uber.org/atomic v1.3.2 // indirect
 	go.uber.org/multierr v1.1.0 // indirect
 	go.uber.org/zap v1.9.1
 	golang.org/x/net v0.0.0-20210428185706-aea814203247
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
-	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	golang.org/x/tools v0.1.6-0.20210726203631-07bc1bf47fb2 // indirect
 	google.golang.org/grpc v1.20.1
 	gopkg.in/yaml.v2 v2.4.0
 )
