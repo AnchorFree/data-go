@@ -53,6 +53,29 @@ func TestSanityzeCoordinates(t *testing.T) {
 	}
 }
 
+func TestSanityzeForLogs(t *testing.T) {
+	tests := []struct {
+		in  string
+		out string
+	}{
+		{"", ""},
+		{"abc", "abc"},
+		{"abc\r", "abc"},
+		{"abc\n", "abc"},
+		{"abc\rdef", "abcdef"},
+		{"abc\ndef", "abcdef"},
+		{"abc\rdef\r", "abcdef"},
+		{"abc\ndef\n", "abcdef"},
+		{"abc\r\ndef\r", "abcdef"},
+		{"abc\r\ndef\n", "abcdef"},
+	}
+	for _, tt := range tests {
+		if s := SanityzeForLogs(tt.in); s != tt.out {
+			t.Errorf("sanityzeForLogs for %q = %q, want %q", tt.in, s, tt.out)
+		}
+	}
+}
+
 var getHeaderListTests = []struct {
 	s string
 	l []string

@@ -33,6 +33,12 @@ func SanityzeCoordinates(src string) string {
 	return rgx.ReplaceAllString(escapedSrc, "$1.x")
 }
 
+func SanityzeForLogs(src string) string {
+	escapedSrc := strings.Replace(src, "\n", "", -1)
+	escapedSrc = strings.Replace(escapedSrc, "\r", "", -1)
+	return escapedSrc
+}
+
 // proudly stolen from
 // https://github.com/golang/gddo/blob/20d68f94ee1f7547de2b1c68627253df20c8d45e/httputil/header/header.go#L86
 
