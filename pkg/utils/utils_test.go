@@ -70,7 +70,7 @@ func TestSanityzeForLogs(t *testing.T) {
 		{"abc\r\ndef\n", "abcdef"},
 	}
 	for _, tt := range tests {
-		if s := sanityzeForLogs(tt.in); s != tt.out {
+		if s := SanityzeForLogs(tt.in); s != tt.out {
 			t.Errorf("sanityzeForLogs for %q = %q, want %q", tt.in, s, tt.out)
 		}
 	}
