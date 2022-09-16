@@ -2,6 +2,7 @@ package geo
 
 import (
 	"bytes"
+	"io/ioutil"
 	"net"
 	"os"
 	"path/filepath"
@@ -198,7 +199,7 @@ func ReadFile(filename string) (*[]byte, error) {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(filepath.Clean(filename))
+	data, err := ioutil.ReadFile(filepath.Clean(filename))
 
 	if err != nil {
 		return nil, err
