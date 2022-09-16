@@ -41,14 +41,14 @@ func (sm *SchemaManager) Validate(event types.Event) (bool, error) {
 		if data[sm.config.PropertyName] == key {
 			err := value.Value.VisitJSON(data)
 			if err != nil {
-				logger.Get().Infof("failed validation for schema event type: %#v", key)
+				logger.Get().Debugf("failed validation for schema event type: %#v", key)
 				return false, err
 			}
-			logger.Get().Infof("successful validation for schema event type %#v", key)
+			logger.Get().Debugf("successful validation for schema event type %#v", key)
 			return true, nil
 		}
 	}
-	logger.Get().Infof("no schema for event")
+	logger.Get().Debugf("no schema for event")
 	return false, nil
 }
 

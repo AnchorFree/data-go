@@ -2,6 +2,7 @@ package schema
 
 import (
 	"bytes"
+
 	"github.com/anchorfree/data-go/pkg/logger"
 	"github.com/anchorfree/data-go/pkg/types"
 )
@@ -23,26 +24,26 @@ func (sm *SchemaManager) NewIterator(iterator types.EventIterator) *EventIterato
 
 func (ei *EventIterator) Next() bool {
 	if !ei.iter.Next() {
-		logger.Get().Infof("no upstream events")
+		logger.Get().Debugf("no upstream events")
 		ei.err = ei.iter.Err()
 		return false
 	}
 
 	ei.event = ei.iter.At()
-	logger.Get().Infof("go event from upstream: %s", ei.event)
+	logger.Get().Debugf("go event from upstream: %s", ei.event)
 
 	if ei.sm.schema == nil {
-		logger.Get().Infof("empty swagger schema, skip validation")
+		logger.Get().Debugf("empty swagger schema, skip validation")
 		return true
 	}
 
 	if _, ok := ei.sm.validateTopics[ei.event.Topic]; !ok {
-		logger.Get().Infof("topic %s is not selected for validation", ei.event.Topic)
+		logger.Get().Debugf("topic %s is not selected for validation", ei.event.Topic)
 		return true
 	}
 
 	if ok, err := ei.sm.Validate(*ei.event); !ok {
-		logger.Get().Infof("failed to validate event: %s with error: %#v", ei.event, err)
+		logger.Get().Warnf("failed to validate event: %s with error: %#v", ei.event, err)
 		ei.event.Message = bytes.Join([][]byte{[]byte(ei.event.Topic), ei.event.Message}, []byte("\t"))
 		ei.event.Topic = ei.sm.GetInvalidMessagesTopic()
 	}
