@@ -9,7 +9,7 @@ require (
 	github.com/facebookgo/clock v0.0.0-20150410010913-600d898af40a // indirect
 	github.com/fsnotify/fsnotify v1.4.7
 	github.com/getkin/kin-openapi v0.2.0
-	github.com/golang/protobuf v1.3.1
+	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.8
 	github.com/grpc-ecosystem/go-grpc-prometheus v1.2.0
 	github.com/hashicorp/consul/api v1.1.0
@@ -19,11 +19,11 @@ require (
 	github.com/oschwald/geoip2-golang v1.2.1
 	github.com/oschwald/maxminddb-golang v1.3.0 // indirect
 	github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea // indirect
-	github.com/prometheus/client_golang v0.9.2
-	github.com/prometheus/client_model v0.0.0-20180712105110-5c3871d89910
-	github.com/prometheus/common v0.0.0-20181126121408-4724e9255275
+	github.com/prometheus/client_golang v1.11.1
+	github.com/prometheus/client_model v0.2.0
+	github.com/prometheus/common v0.26.0
 	github.com/rubyist/circuitbreaker v2.2.1+incompatible
-	github.com/stretchr/testify v1.3.0
+	github.com/stretchr/testify v1.4.0
 	github.com/valyala/fasthttp v1.24.0
 	github.com/valyala/fastjson v1.4.1
 	github.com/yl2chen/cidranger v0.0.0-20180214081945-928b519e5268
